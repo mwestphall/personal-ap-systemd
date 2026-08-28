@@ -183,11 +183,11 @@ Before launching your first job, confirm that:
 
 1. Exit all of your linux host's login sessions.
 
-  ```
-  $ logout
-  ```
+    ```
+    $ logout
+    ```
 
-1. Log back onto your linux host. Confirm that your systemctl service remained active through your logout.
+1. Log back onto your linux host. Confirm that your systemctl service remained active.
 
     ```
     $ systemctl status --user htcondor.service
@@ -202,14 +202,14 @@ Before launching your first job, confirm that:
 
 # Run your first HTCondor Job via an Annex with OpenOnDemand
 
-While your Access Point (AP) configured in the previous section manages your HTCondor job queue, additional resources are
-required to to run those workflows. An Execution Point (EP) launched via the Annex feature runs multiple HTCondor jobs
-within the lifecycle of a single Slurm job.
+Your Access Point (AP) configured in the previous section manages your HTCondor job queue. Additional resources are
+required to to run jobs placed into that queue. An Execution Point (EP) launched via the Annex feature runs multiple 
+HTCondor jobs within the lifecycle of a single Slurm job.
 
 ## Create a "Hello World" Job on your AP
 
-Create a simple "Hello World" job on your AP, consisting of a Submit File (HTCondor Job Description Language) and an
-executable bash script:
+Create a simple "Hello World" job on your AP, consisting of a Submit File (`hello.sub`) and an
+executable bash script (`hello.sh`):
 
 ```
 $ cat << EOF >> hello.sub
