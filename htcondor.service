@@ -1,0 +1,9 @@
+[Unit]
+Description=HTCondor Personal AP
+
+[Service]
+ExecStart=/bin/bash -c "source ~/condor/condor.sh; ~/condor/sbin/condor_master -f"
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
