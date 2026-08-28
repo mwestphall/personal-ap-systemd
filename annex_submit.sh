@@ -1,0 +1,34 @@
+#!/bin/bash
+#SBATCH --job-name=htc-annex
+#SBATCH --partition=<part>       # Partition to which you have job access
+#SBATCH --time=4:00:00           # wall time, HH:MM:SS. Adjust based on your jobs' expected runtime.
+#SBATCH --cpus-per-task=2        # CPUs for EP. Adjust based on your jobs' resource requirements.
+#SBATCH --mem=4G                 # 
+#SBATCH --output=htc-annex-app.debug
+#SBATCH --error=htc-annex-app.debug
+
+SOURCE="$HOME/annex-test-annex.tar"   # full path to the tarball from `htcondor annex create`
+
+if [ ! -f "$SOURCE" ]; then
+  echo "ERROR: Specified source tarball $SOURCE does not exist"
+  exit 1
+fi
+
+echo "Unpacking $SOURCE"
+tar -xvf "$SOURCE" --strip-components=1
+
+echo ""
+echo "Displaying working directory"
+ls -alh
+
+echo ""
+echo "Executing annex setup script"
+bash annex-setup.sh
+
+echo ""
+echo "Executing HTC annex slurm script"
+export SLURM_EXPORT_ENV=ALL
+bash hpc.slurm > annex-job.out 2> annex-job.err
+status=$?
+echo "hpc.slurm exited with status ${status}"
+exit "${status}"
