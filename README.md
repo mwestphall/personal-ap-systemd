@@ -21,6 +21,8 @@ Before installing a personal AP, you must have the following:
 
 # Personal AP Install
 
+**Note**: An [install.sh](./install.sh) script is provided to automate this install step.
+
 To install an HTCondor Access Point on your Linux host as an unprivileged user, perform the following steps:
 
 ### Download Prerequisites
@@ -83,6 +85,8 @@ Annex configuration is available from this repository at [11-ap-annex.conf](./11
 
 
 # Personal AP SystemD Configuration
+
+**Note**: An [install.sh](./install.sh) script is provided to automate this install step.
 
 To configure your Linux host to run your Personal AP on startup, configure an unprivileged SystemD
 service in your home directory.
