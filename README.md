@@ -275,6 +275,12 @@ $ chmod +x hello.sh
 
 ## Submit your Annex via OpenOnDemand
 
+**Note**: An [ood-template.sh](./ood-template.sh) script is provided to automate this step, e.g.:
+
+```
+$ ./ood-template.sh --host you@hpc-login.institution.edu --tarball annex-test-annex.tar --queue <part>
+```
+
 1. Log onto your HPC cluster's OpenOnDemand Instance.
 
 1. In the Job Composer, create a New Template for launching annex jobs.
