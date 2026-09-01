@@ -9,6 +9,8 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANNEX_SUBMIT_TEMPLATE="$REPO_DIR/annex_submit.sh"
 
+TEMPLATE_DIR_DEFAULT="~/ondemand/templates"
+
 usage() {
     cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") --host <user@slurm-login-host> --tarball <path> --queue <name> [OPTIONS]
@@ -25,12 +27,21 @@ Required arguments:
                                     job to.
 
 Optional arguments:
-  --mem <size>     Memory to request for the annex job (default: 4G).
-  --cpus <n>       CPUs to request for the annex job (default: 2).
-  --name <name>    Name of the OOD template to create (default: derived
-                    from the tarball filename).
-  --help           Print this help message and exit.
+  --mem <size>            Memory to request for the annex job (default: 4G).
+  --cpus <n>              CPUs to request for the annex job (default: 2).
+  --name <name>           Name of the OOD template to create (default:
+                          derived from the tarball filename). Converted to
+                          snake_case, e.g. "OOD Template Name" becomes
+                          "ood_template_name".
+  --template-dir <path>   Directory on the login host in which to create
+                          the template (default: ${TEMPLATE_DIR_DEFAULT}).
+  --help                  Print this help message and exit.
 EOF
+}
+
+# Convert a string to snake_case, e.g. "OOD Template Name" -> "ood_template_name"
+to_snake_case() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_+//; s/_+$//'
 }
 
 HOST=""
@@ -39,6 +50,7 @@ QUEUE=""
 MEM="4G"
 CPUS="2"
 TEMPLATE_NAME=""
+TEMPLATE_DIR_ARG="$TEMPLATE_DIR_DEFAULT"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -76,6 +88,11 @@ while [ $# -gt 0 ]; do
             TEMPLATE_NAME="$2"
             shift 2
             ;;
+        --template-dir)
+            [ $# -ge 2 ] || { echo "error: --template-dir requires an argument" >&2; exit 1; }
+            TEMPLATE_DIR_ARG="$2"
+            shift 2
+            ;;
         *)
             echo "error: unknown argument: $1" >&2
             usage >&2
@@ -101,6 +118,17 @@ if [ -z "$TEMPLATE_NAME" ]; then
     # Derive a template name from a tarball like "annex-test-annex.tar" -> "test-annex"
     TEMPLATE_NAME="${TARBALL_BASENAME%.tar}"
     TEMPLATE_NAME="${TEMPLATE_NAME#annex-}"
+fi
+TEMPLATE_NAME="$(to_snake_case "$TEMPLATE_NAME")"
+
+# Templates are created relative to the login host's home directory unless an
+# absolute --template-dir path is given.
+if [[ "$TEMPLATE_DIR_ARG" == /* ]]; then
+    TEMPLATE_BASE_DIR="$TEMPLATE_DIR_ARG"
+    REMOTE_PREFIX=""
+else
+    TEMPLATE_BASE_DIR="${TEMPLATE_DIR_ARG#\~/}"
+    REMOTE_PREFIX="~/"
 fi
 
 WORKDIR="$(mktemp -d)"
@@ -138,9 +166,9 @@ sed \
 # --- Log onto your HPC cluster's OpenOnDemand instance -----------------------
 # SSH into the Slurm login host to create a New Template directory for the
 # Job Composer app.
-TEMPLATE_DIR="ondemand/data/sys/myjobs/templates/${TEMPLATE_NAME}"
-echo "==> Creating OOD template directory ~/${TEMPLATE_DIR} on $HOST"
-ssh "${SSH_OPTS[@]}" "$HOST" "mkdir -p ~/${TEMPLATE_DIR}"
+TEMPLATE_DIR="${TEMPLATE_BASE_DIR}/${TEMPLATE_NAME}"
+echo "==> Creating OOD template directory ${REMOTE_PREFIX}${TEMPLATE_DIR} on $HOST"
+ssh "${SSH_OPTS[@]}" "$HOST" "mkdir -p ${REMOTE_PREFIX}${TEMPLATE_DIR}"
 
 # --- Create a New Template in the Job Composer -------------------------------
 FORM_YML="$WORKDIR/form.yml"
@@ -157,10 +185,10 @@ script:
     template: basic
 EOF
 
-echo "==> Copying template files to $HOST:~/${TEMPLATE_DIR}/"
-scp "${SSH_OPTS[@]}" "$MAIN_JOB" "$HOST:~/${TEMPLATE_DIR}/main_job.sh"
-scp "${SSH_OPTS[@]}" "$FORM_YML" "$HOST:~/${TEMPLATE_DIR}/form.yml"
+echo "==> Copying template files to $HOST:${REMOTE_PREFIX}${TEMPLATE_DIR}/"
+scp "${SSH_OPTS[@]}" "$MAIN_JOB" "$HOST:${REMOTE_PREFIX}${TEMPLATE_DIR}/main_job.sh"
+scp "${SSH_OPTS[@]}" "$FORM_YML" "$HOST:${REMOTE_PREFIX}${TEMPLATE_DIR}/form.yml"
 
 echo "==> Template complete"
-echo "    Template '${TEMPLATE_NAME}' installed at ~/${TEMPLATE_DIR} on ${HOST}."
+echo "    Template '${TEMPLATE_NAME}' installed at ${REMOTE_PREFIX}${TEMPLATE_DIR} on ${HOST}."
 echo "    Log into OpenOnDemand's Job Composer and select this template to submit your annex job."
