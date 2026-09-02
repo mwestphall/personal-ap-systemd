@@ -9,10 +9,12 @@ running jobs via your AP on a Slurm Annex.
 Before installing a personal AP, you must have the following:
 
 * Job submission permissions on a Slurm cluster:  
-  Execution points for a personal AP run as Slurm jobs.
+  * Execution points for a personal AP run as Slurm jobs.
 
 * Login access to a Linux host with inbound network traffic from your Slurm cluster:  
-  Execution Points must be able to open an incoming TCP connection to your AP.
+  * Execution Points must be able to initiate a TCP connection to the AP’s listening service (on port 9618 by default),
+    and the AP must be able to accept that inbound connection. Any firewalls and NAT devices must permit EP  -> AP TCP flows
+    (EP‑initiated) to port 9618.
 
 * Permissions to open a port on your Linux login host.
 
