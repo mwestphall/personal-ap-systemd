@@ -7,7 +7,7 @@
 #SBATCH --output=personal-ap.debug
 #SBATCH --error=personal-ap.debug
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 INSTALL_SH="$REPO_DIR/install.sh"
 TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball> [base-dir]}"
 BASE_DIR="${2:-}"                                   # defaults to install.sh's own default (/scratch/$USER) if omitted
