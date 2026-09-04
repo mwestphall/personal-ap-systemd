@@ -190,7 +190,7 @@ $ chmod +x hello.sh
    as an Execution Point that services your existing Access Point.
 
     ```
-    $ htcondor annex create --name test-annex
+    $ htcondor annex create test-annex
     
     Please copy the file annex-test-annex.tar to the HPC system
     ```
