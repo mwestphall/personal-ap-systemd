@@ -196,13 +196,18 @@ fi
 # Skip SystemD/loginctl entirely and run condor_master directly, blocking for
 # as long as the AP should stay up (e.g. the lifetime of a Slurm allocation).
 if [ "$FOREGROUND" = "true" ]; then
-    # Pin FULL_HOSTNAME to this node's value in the shared config. Without
-    # this, condor tools run from another host sharing $BASE_DIR (e.g. the
-    # Slurm login node) would each auto-detect their own local hostname
-    # instead of the AP's, causing a mismatch.
+    # Pin this node's hostname in the shared config. Without this, condor
+    # tools run from another host sharing $BASE_DIR (e.g. the Slurm login
+    # node) would each auto-detect their own local hostname instead of the
+    # AP's, causing a mismatch. FULL_HOSTNAME itself can't be set directly -
+    # it's a "special" macro that HTCondor unconditionally re-detects and
+    # overwrites after config files are read (see reinsert_specials() in
+    # condor_config.cpp). NETWORK_HOSTNAME is the supported hook: it feeds
+    # into that same detection step, so it survives instead of being
+    # clobbered by it.
     AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
-    echo "==> Pinning FULL_HOSTNAME to $AP_FULL_HOSTNAME"
-    echo "FULL_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
+    echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
+    echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
 
     echo "==> Running HTCondor AP in the foreground"
     exec "$CONDOR_DIR/sbin/condor_master" -f
