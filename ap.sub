@@ -8,7 +8,7 @@
 #SBATCH --error=personal-ap.debug
 
 INSTALL_SH="$HOME/personal-ap-systemd/install.sh"   # adjust if cloned elsewhere
-TARBALL="$HOME/condor.tar.gz"                       # full path to the HTCondor tarball to install from
+TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball>}"
 
 if [ ! -x "$INSTALL_SH" ]; then
   echo "ERROR: $INSTALL_SH not found or not executable"
@@ -20,4 +20,4 @@ if [ ! -f "$TARBALL" ]; then
   exit 1
 fi
 
-exec "$INSTALL_SH" --tarball "$TARBALL" --foreground
+exec "$INSTALL_SH" --tarball "$TARBALL" --enable-idtoken-auth --foreground
