@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --job-name=personal-ap
+#SBATCH --partition=<part>       # Partition to which you have job access
+#SBATCH --time=4:00:00           # wall time, HH:MM:SS. The AP runs only as long as this job does.
+#SBATCH --cpus-per-task=1        # Adjust based on expected AP load.
+#SBATCH --mem=2G                 # Adjust based on expected AP load.
+#SBATCH --output=personal-ap.debug
+#SBATCH --error=personal-ap.debug
+
+INSTALL_SH="$HOME/personal-ap-systemd/install.sh"   # adjust if cloned elsewhere
+TARBALL="$HOME/condor.tar.gz"                       # full path to the HTCondor tarball to install from
+
+if [ ! -x "$INSTALL_SH" ]; then
+  echo "ERROR: $INSTALL_SH not found or not executable"
+  exit 1
+fi
+
+if [ ! -f "$TARBALL" ]; then
+  echo "ERROR: Specified HTCondor tarball $TARBALL does not exist"
+  exit 1
+fi
+
+exec "$INSTALL_SH" --tarball "$TARBALL" --foreground
