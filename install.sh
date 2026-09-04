@@ -20,16 +20,21 @@ persistently via unprivileged SystemD, and enable lingering so it
 survives logout.
 
 Options:
-  --download        Download the HTCondor release tarball from
-                     get.htcondor.org (default).
-  --tarball <path>   Install HTCondor from an existing tarball on disk
-                     at <path>, instead of downloading one.
-  --help             Print this help message and exit.
+  --download          Download the HTCondor release tarball from
+                       get.htcondor.org (default).
+  --tarball <path>     Install HTCondor from an existing tarball on disk
+                       at <path>, instead of downloading one.
+  --foreground         After installing, run the AP in the foreground
+                       (condor_master -f) instead of installing it as a
+                       SystemD user service. Intended for running the AP
+                       as a Slurm job; see ap.sub.
+  --help               Print this help message and exit.
 EOF
 }
 
 SOURCE_MODE="download"
 TARBALL_PATH=""
+FOREGROUND="false"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -50,6 +55,10 @@ while [ $# -gt 0 ]; do
             SOURCE_MODE="tarball"
             TARBALL_PATH="$2"
             shift 2
+            ;;
+        --foreground)
+            FOREGROUND="true"
+            shift
             ;;
         *)
             echo "error: unknown argument: $1" >&2
@@ -109,6 +118,14 @@ fi
 # Enable the optional Annex feature so EPs can be launched via Slurm jobs.
 echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$HOME/condor/local/config.d/"
+
+# --- Run the AP in the foreground (e.g. as a Slurm job) ----------------------
+# Skip SystemD/loginctl entirely and run condor_master directly, blocking for
+# as long as the AP should stay up (e.g. the lifetime of a Slurm allocation).
+if [ "$FOREGROUND" = "true" ]; then
+    echo "==> Running HTCondor AP in the foreground"
+    exec "$HOME/condor/sbin/condor_master" -f
+fi
 
 # --- Personal AP SystemD Configuration --------------------------------------
 # Install and enable an unprivileged SystemD user service for HTCondor so it
