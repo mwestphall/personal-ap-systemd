@@ -11,6 +11,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+BASE_DIR_DEFAULT="/scratch/$USER"
+
 usage() {
     cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS]
@@ -20,6 +22,9 @@ persistently via unprivileged SystemD, and enable lingering so it
 survives logout.
 
 Options:
+  --base-dir <path>    Base directory for the AP install, on storage
+                       shared with wherever condor tools will be run
+                       from (default: ${BASE_DIR_DEFAULT}).
   --download          Download the HTCondor release tarball from
                        get.htcondor.org (default).
   --tarball <path>     Install HTCondor from an existing tarball on disk
@@ -45,12 +50,22 @@ SOURCE_MODE="download"
 TARBALL_PATH=""
 FOREGROUND="false"
 IDTOKEN_AUTH="false"
+BASE_DIR="$BASE_DIR_DEFAULT"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --help)
             usage
             exit 0
+            ;;
+        --base-dir)
+            if [ $# -lt 2 ]; then
+                echo "error: --base-dir requires a path argument" >&2
+                usage >&2
+                exit 1
+            fi
+            BASE_DIR="$2"
+            shift 2
             ;;
         --download)
             SOURCE_MODE="download"
@@ -87,43 +102,46 @@ if [ "$SOURCE_MODE" = "tarball" ] && [ ! -f "$TARBALL_PATH" ]; then
     exit 1
 fi
 
+echo "==> Using base directory $BASE_DIR"
+mkdir -p "$BASE_DIR"
+
 # --- Download Prerequisites -------------------------------------------------
 # Fetch the HTCondor release tarball (personal-ap-systemd itself is assumed to
 # already be cloned, since this script lives inside it), or use one supplied
 # on-disk via --tarball.
-if [ -d "$HOME/condor" ]; then
-    echo "==> $HOME/condor already exists, skipping download/install"
+if [ -d "$BASE_DIR/condor" ]; then
+    echo "==> $BASE_DIR/condor already exists, skipping download/install"
 else
     if [ "$SOURCE_MODE" = "tarball" ]; then
         echo "==> Using HTCondor tarball at $TARBALL_PATH"
         CONDOR_TARBALL="$TARBALL_PATH"
     else
         echo "==> Downloading HTCondor"
-        if [ ! -f "$HOME/condor.tar.gz" ]; then
-            curl -fsSL https://get.htcondor.org | /bin/bash -s -- -download
+        if [ ! -f "$BASE_DIR/condor.tar.gz" ]; then
+            (cd "$BASE_DIR" && curl -fsSL https://get.htcondor.org | /bin/bash -s -- -download)
         else
-            echo "    $HOME/condor.tar.gz already downloaded"
+            echo "    $BASE_DIR/condor.tar.gz already downloaded"
         fi
-        CONDOR_TARBALL="$HOME/condor.tar.gz"
+        CONDOR_TARBALL="$BASE_DIR/condor.tar.gz"
     fi
 
     # --- Install HTCondor ---------------------------------------------------
     # Unpack the tarball and configure it as a single-user AP.
     echo "==> Unpacking HTCondor"
-    tar -xf "$CONDOR_TARBALL" -C "$HOME"
-    mv "$HOME"/condor-*stripped/ "$HOME/condor/"
+    tar -xf "$CONDOR_TARBALL" -C "$BASE_DIR"
+    mv "$BASE_DIR"/condor-*stripped/ "$BASE_DIR/condor/"
 
     echo "==> Configuring HTCondor as a single-user AP"
-    (cd "$HOME/condor" && bin/make-ap-from-tarball)
+    (cd "$BASE_DIR/condor" && bin/make-ap-from-tarball)
 fi
 
 echo "==> Updating shell environment with AP install"
 # shellcheck disable=SC1091
-. "$HOME/condor/condor.sh"
+. "$BASE_DIR/condor/condor.sh"
 
-if ! grep -qF '. ~/condor/condor.sh' "$HOME/.bashrc" 2>/dev/null; then
+if ! grep -qF ". $BASE_DIR/condor/condor.sh" "$HOME/.bashrc" 2>/dev/null; then
     echo "==> Adding condor.sh sourcing to .bashrc"
-    echo '. ~/condor/condor.sh' >> "$HOME/.bashrc"
+    echo ". $BASE_DIR/condor/condor.sh" >> "$HOME/.bashrc"
 else
     echo "==> .bashrc already sources condor.sh"
 fi
@@ -131,7 +149,7 @@ fi
 # --- Configure HTCondor for Annex Mode --------------------------------------
 # Enable the optional Annex feature so EPs can be launched via Slurm jobs.
 echo "==> Installing Annex configuration"
-cp "$REPO_DIR/11-ap-annex.conf" "$HOME/condor/local/config.d/"
+cp "$REPO_DIR/11-ap-annex.conf" "$BASE_DIR/condor/local/config.d/"
 
 # --- Enable IDToken Authentication (testing only) ----------------------------
 # IDTOKENS is already an accepted authentication method via
@@ -142,7 +160,7 @@ cp "$REPO_DIR/11-ap-annex.conf" "$HOME/condor/local/config.d/"
 if [ "$IDTOKEN_AUTH" = "true" ]; then
     echo "==> Enabling IDToken authentication"
 
-    POOL_KEY_FILE="$HOME/condor/local/passwords.d/POOL"
+    POOL_KEY_FILE="$BASE_DIR/condor/local/passwords.d/POOL"
     if [ -f "$POOL_KEY_FILE" ]; then
         echo "    $POOL_KEY_FILE already exists, leaving it in place"
     else
@@ -155,7 +173,7 @@ if [ "$IDTOKEN_AUTH" = "true" ]; then
     fi
 
     TOKEN_NAME="testing"
-    TOKEN_FILE="$HOME/condor/local/tokens.d/$TOKEN_NAME"
+    TOKEN_FILE="$BASE_DIR/condor/local/tokens.d/$TOKEN_NAME"
     if [ -f "$TOKEN_FILE" ]; then
         echo "    $TOKEN_FILE already exists, leaving it in place"
     else
@@ -171,16 +189,25 @@ fi
 # Skip SystemD/loginctl entirely and run condor_master directly, blocking for
 # as long as the AP should stay up (e.g. the lifetime of a Slurm allocation).
 if [ "$FOREGROUND" = "true" ]; then
+    # Pin FULL_HOSTNAME to this node's value in the shared config. Without
+    # this, condor tools run from another host sharing $BASE_DIR (e.g. the
+    # Slurm login node) would each auto-detect their own local hostname
+    # instead of the AP's, causing a mismatch.
+    AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
+    echo "==> Pinning FULL_HOSTNAME to $AP_FULL_HOSTNAME"
+    echo "FULL_HOSTNAME = $AP_FULL_HOSTNAME" > "$BASE_DIR/condor/local/config.d/13-ap-hostname.conf"
+
     echo "==> Running HTCondor AP in the foreground"
-    exec "$HOME/condor/sbin/condor_master" -f
+    exec "$BASE_DIR/condor/sbin/condor_master" -f
 fi
 
 # --- Personal AP SystemD Configuration --------------------------------------
 # Install and enable an unprivileged SystemD user service for HTCondor so it
-# starts automatically on login.
+# starts automatically on login. htcondor.service refers to ~/condor as a
+# stand-in for the install location; substitute in the actual base directory.
 echo "==> Configuring HTCondor SystemD user service"
 mkdir -p "$HOME/.config/systemd/user"
-cp "$REPO_DIR/htcondor.service" "$HOME/.config/systemd/user/"
+sed "s|~/condor|${BASE_DIR}/condor|g" "$REPO_DIR/htcondor.service" > "$HOME/.config/systemd/user/htcondor.service"
 
 systemctl --user daemon-reload
 systemctl --user enable htcondor.service
@@ -207,5 +234,5 @@ else
 fi
 
 echo "==> Install complete"
-echo "    Run '. ~/condor/condor.sh' in your current shell, or start a new shell,"
+echo "    Run '. $BASE_DIR/condor/condor.sh' in your current shell, or start a new shell,"
 echo "    to pick up your HTCondor environment."
