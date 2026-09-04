@@ -90,7 +90,25 @@ echo "==> Updating shell environment with AP install"
 echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
+# --- Run the AP (e.g. as a Slurm job) ----------------------------------
+# Pin this node's hostname via NETWORK_HOSTNAME in the shared config.
+AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
+echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
+echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
+
+echo "==> Starting HTCondor AP"
+"$CONDOR_DIR/sbin/condor_master" -f &
+MASTER_PID=$!
+
 # --- Enable IDToken Authentication --------------------------------------
+# Wait up to 10 seconds for the AP to provision its pool password.
+POOL_FILE="$CONDOR_DIR/local/passwords.d/POOL"
+WAITED=0
+while [ ! -f "$POOL_FILE" ] && [ "$WAITED" -lt 10 ]; do
+    sleep 1
+    WAITED=$((WAITED + 1))
+done
+
 # Issue a sample IDToken with schedd READ/WRITE authorization into the
 # AP's tokens.d directory.
 echo "==> Generating IDToken for schedd access"
@@ -99,14 +117,7 @@ IDENTITY="$(whoami)@$(condor_config_val UID_DOMAIN)"
 condor_token_create -identity "$IDENTITY" -authz READ -authz WRITE -token "$TOKEN_NAME"
 echo "    Generated sample IDToken for $IDENTITY at $CONDOR_DIR/local/tokens.d/$TOKEN_NAME"
 
-# --- Run the AP in the foreground (e.g. as a Slurm job) ----------------------
-# Pin this node's hostname via NETWORK_HOSTNAME in the shared config.
-AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
-echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
-echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
-
 echo "==> To interact with this AP from the login node, source the condor env file at $CONDOR_DIR/condor.sh:"
 echo "    '. $CONDOR_DIR/condor.sh'"
 
-echo "==> Running HTCondor AP in the foreground"
-exec "$CONDOR_DIR/sbin/condor_master" -f
+wait "$MASTER_PID"
