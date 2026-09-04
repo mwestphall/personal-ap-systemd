@@ -105,5 +105,8 @@ AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
 echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
 echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
 
+echo "==> To interact with this AP from the login node, source the condor env file at $CONDOR_DIR/condor.sh:"
+echo "    '. $CONDOR_DIR/condor.sh'"
+
 echo "==> Running HTCondor AP in the foreground"
 exec "$CONDOR_DIR/sbin/condor_master" -f
