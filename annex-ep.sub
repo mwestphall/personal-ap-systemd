@@ -4,10 +4,10 @@
 #SBATCH --time=4:00:00           # wall time, HH:MM:SS. Adjust based on your jobs' expected runtime.
 #SBATCH --cpus-per-task=2        # CPUs for EP. Adjust based on your jobs' resource requirements.
 #SBATCH --mem=4G                 # 
-#SBATCH --output=htc-annex-app.debug
-#SBATCH --error=htc-annex-app.debug
+#SBATCH --output=annex-ep.debug
+#SBATCH --error=annex-ep.debug
 
-SOURCE="$HOME/annex-test-annex.tar"   # full path to the tarball from `htcondor annex create`
+SOURCE="${1:?Usage: sbatch annex-ep.sub <path-to-annex-tarball>}"   # full path to the tarball from `htcondor annex create`
 
 if [ ! -f "$SOURCE" ]; then
   echo "ERROR: Specified source tarball $SOURCE does not exist"
