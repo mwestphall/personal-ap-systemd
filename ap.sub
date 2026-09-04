@@ -8,7 +8,8 @@
 #SBATCH --error=personal-ap.debug
 
 INSTALL_SH="$HOME/personal-ap-systemd/install.sh"   # adjust if cloned elsewhere
-TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball>}"
+TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball> [base-dir]}"
+BASE_DIR="${2:-}"                                   # defaults to install.sh's own default (/scratch/$USER) if omitted
 
 if [ ! -x "$INSTALL_SH" ]; then
   echo "ERROR: $INSTALL_SH not found or not executable"
@@ -20,4 +21,9 @@ if [ ! -f "$TARBALL" ]; then
   exit 1
 fi
 
-exec "$INSTALL_SH" --tarball "$TARBALL" --enable-idtoken-auth --foreground
+INSTALL_ARGS=("$TARBALL")
+if [ -n "$BASE_DIR" ]; then
+  INSTALL_ARGS=(--base-dir "$BASE_DIR" "$TARBALL")
+fi
+
+exec "$INSTALL_SH" "${INSTALL_ARGS[@]}"
