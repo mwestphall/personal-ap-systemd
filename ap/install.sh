@@ -134,7 +134,10 @@ echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
 # --- Run the AP (e.g. as a Slurm job) ----------------------------------
-# Pin this node's hostname via NETWORK_HOSTNAME in the shared config.
+# Pin this node's hostname via NETWORK_HOSTNAME in the shared config. Clear
+# any previous pin first, so a resumed AP re-detects its real hostname
+# instead of reading back the last run's stale value.
+rm -f "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
 AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
 echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
 echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
