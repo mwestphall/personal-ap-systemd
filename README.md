@@ -6,7 +6,7 @@ This repository contains instructions for launching a single-user HTCondor clust
 
 # Prerequisites
 
-Before , you must have the following:
+Before creating your HTCondor cluster, you must have the following:
 
 * Job submission permissions on a Slurm cluster:  
   * Your HTCondor Access Point and its Execution Points run as Slurm jobs.
@@ -19,11 +19,15 @@ Before , you must have the following:
   * Interaction with your HTCondor cluster is accomplished via HTCondor command line tools run on your Slurm cluster's login node.
     You must be able to access the HTCondor configuration files provisioned by your AP job from the login node.
 
-* `git` installed on your Slurm cluster's login node:
+* `git` installed on your Slurm cluster's login node.
 
 # Download HTCondor
 
 To install an HTCondor Access Point on your Linux host as an unprivileged user, perform the following steps:
+
+* Select a location on your Slurm Cluster's shared filesystem to place your HTCondor configuration files.
+
+* Download the latest version of HTCondor, or a specific development version.
 
 ## Shared Filesystem
 
@@ -38,33 +42,33 @@ $ cd $SHARED_FS
 
 ## Latest HTCondor 
 
-1. HTCondor is available for download via `get.htcondor.org`:
+HTCondor is available for download via `get.htcondor.org`:
 
-    ```
-    $ curl -fsSL https://get.htcondor.org | /bin/bash -s -- -download
-    ```
+```
+$ curl -fsSL https://get.htcondor.org | /bin/bash -s -- -download
+```
 
-    This will download the latest release of HTCondor as a tarball file `condor.tar.gz` in your working directory.
+This will download the latest release of HTCondor as a tarball file `condor.tar.gz` in your working directory.
 
 ## Specific HTCondor 
 
-1. To install a specific HTCondor version, `curl` a distro-specific tarball from `https://htcss-downloads.chtc.wisc.edu/tarball`, eg.
-   (for Alma/Rocky Linux 9):
+To install a specific HTCondor version, `curl` a distro-specific tarball from `https://htcss-downloads.chtc.wisc.edu/tarball`, eg.
+(for Alma/Rocky Linux 9):
 
-    ```
-    $ curl -o condor.tar.gz -L \
-        https://htcss-downloads.chtc.wisc.edu/tarball/25.x/25.15.15/snapshot/condor-25.15.15-x86_64_AlmaLinux9-stripped.tar.gz
-    ```
+```
+$ curl -o condor.tar.gz -L \
+  https://htcss-downloads.chtc.wisc.edu/tarball/25.x/25.15.15/snapshot/condor-25.15.15-x86_64_AlmaLinux9-stripped.tar.gz
+```
 
 
 # Download Slurm Scripts
 
-The Slurm scripts used to provision a cluster are available from [this repository](https://github.com/mwestphall/personal-ap-systemd)
+The Slurm scripts used to provision a cluster are available from [this repository](https://github.com/mwestphall/personal-ap-systemd).
 Clone this repo via Git before proceeding.
 
-    ```
-    $ git clone https://github.com/mwestphall/personal-ap-systemd
-    ```
+```
+$ git clone https://github.com/mwestphall/personal-ap-systemd
+```
 
 
 
@@ -76,8 +80,8 @@ The provided [ap.sub](./ap.sub) and [install.sh](./install.sh) scripts launch a 
 
 1. Configures HTCondor to run as an Access Point in single-user mode under your Unix account.
 
-1. Creates configuration that makes HTCondor command line tools run from the login node run against
-   the AP job by default.
+1. Creates configuration that points HTCondor command line tools invoked from the login 
+   node at your running AP job.
 
 
 To launch an AP Slurm job:
@@ -133,13 +137,12 @@ To launch an AP Slurm job:
 
 # Submit your first HTCondor Job to your AP
 
-Your Access Point (AP) configured in the previous section manages your HTCondor job queue. Additional resources are
-required to to run jobs placed into that queue. An Execution Point (EP) launched via the Annex feature runs multiple 
-HTCondor jobs within the lifecycle of a single Slurm job.
+Your Access Point (AP) configured in the previous section manages your HTCondor job queue.
+Place a "Hello World" HTCondor job into your AP's job queue.
 
 ## Create a "Hello World" Job
 
-Create a simple "Hello World" job on your login node, consisting of a Submit File (`hello.sub`) and an
+Create a "Hello World" job on your login node, consisting of a Submit File (`hello.sub`) and an
 executable bash script (`hello.sh`):
 
 ```
@@ -173,37 +176,41 @@ $ chmod +x hello.sh
 
 ## Submit your HTCondor Job to your AP
 
-1. Before creating an execution point for your cluster, submit a test job to your AP: Mark it to run on an annex (another Slurm worker within the cluster) 
-   via `--annex-name`:
+Submit a test job to your AP: Mark it to run on an annex (another Slurm worker within the cluster) 
+via `--annex-name`:
 
-    ```
-    $ htcondor job submit hello.sub --annex-name <annex name>
-    ```
+```
+$ htcondor job submit hello.sub --annex-name <annex name>
+```
 
-    `<annex name>` should be a unique string describing the purpose of your annex.
+`<annex name>` should be a unique string describing the purpose of your annex.
 
 # Schedule an Execution Point on your Slurm Cluster
 
+Additional resources are required to to run jobs placed into your AP's queue. 
+An Execution Point (EP) runs multiple HTCondor jobs within the lifecycle 
+of a single Slurm job.
+
 ## Prepare an HTCondor Tarball for your Execution Point 
 
-1. Create an EP tarball via the `htcondor annex create` tool. This tarball contains an HTCondor installation configured
-   as an Execution Point that services your existing Access Point.
+Create an EP tarball via the `htcondor annex create` tool. This tarball contains an HTCondor installation configured
+as an Execution Point that runs jobs from your existing Access Point's job queue.
 
-    ```
-    $ htcondor annex create test-annex
-    
-    Please copy the file annex-test-annex.tar to the HPC system
-    ```
+```
+$ htcondor annex create test-annex
 
-## Schedule an Execution Point on your Slurm Cluster
+Please copy the file annex-test-annex.tar to the HPC system
+```
+
+## Schedule an Execution Point
 
 The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
 
-1. Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and EP tarball location as appropriate:
+Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and EP tarball location as appropriate:
 
-    ```
-    $ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar>
-    ```
+```
+$ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar>
+```
 
 ## Confirm that your Job Runs on the Annex
 
@@ -218,7 +225,8 @@ The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launche
     1 jobs must run on this annex, and 1 currently are.
     ```
 
-2. Check the output of your job after it finishes:
+1. Check the output of your job after it finishes:
+
     ```
     $ cat hello.out
     Hello, World!
