@@ -7,7 +7,8 @@
 #SBATCH --output=annex-ep.debug
 #SBATCH --error=annex-ep.debug
 
-SOURCE="${1:?Usage: sbatch annex-ep.sub <path-to-annex-tarball>}"   # full path to the tarball from `htcondor annex create`
+SOURCE="${1:?Usage: sbatch annex-ep.sub <path-to-annex-tarball> <ap-local-condor-dir>}"   # full path to the tarball from `htcondor annex create`
+AP_DIR="${2:?Usage: sbatch annex-ep.sub <path-to-annex-tarball> <ap-local-condor-dir>}"   # the AP's condor install dir (contains local/, condor.sh, etc.)
 
 if [ ! -f "$SOURCE" ]; then
   echo "ERROR: Specified source tarball $SOURCE does not exist"
@@ -24,6 +25,42 @@ ls -alh
 echo ""
 echo "Executing annex setup script"
 bash annex-setup.sh
+
+echo ""
+echo "Configuring dynamic collector lookup"
+cat > update-annex-collector.sh <<'SCRIPT'
+#!/bin/bash
+# Read the AP's Machine attribute from its schedd address file, point
+# ANNEX_PILOT_COLLECTOR at that host's AP collector, and SIGHUP condor_master
+# (our great-grandparent process) to pick up the change.
+ADDR_FILE="$1"
+MACHINE="$(grep -m1 '^Machine' "$ADDR_FILE" | sed -E 's/^Machine[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/')"
+if [ -n "$MACHINE" ]; then
+    condor_config_val -rset "ANNEX_PILOT_COLLECTOR = ${MACHINE}:9618?sock=ap_collector"
+
+    pid=$$
+    for _ in $(seq 1 10); do
+        pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+        [ -z "$pid" ] && break
+        if ps -o comm= -p "$pid" 2>/dev/null | grep -q '^condor_master$'; then
+            kill -HUP "$pid"
+            break
+        fi
+    done
+fi
+SCRIPT
+chmod +x update-annex-collector.sh
+
+cat >> 20-annex-pilot-instance <<EOF
+
+SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
+
+STARTD_CRON_JOBLIST = \$(STARTD_CRON_JOBLIST) UPDATE_ANNEX_COLLECTOR
+STARTD_CRON_UPDATE_ANNEX_COLLECTOR_EXECUTABLE = $(pwd)/update-annex-collector.sh
+STARTD_CRON_UPDATE_ANNEX_COLLECTOR_ARGS = \$(SCHEDD_ADDRESS_FILE)
+STARTD_CRON_UPDATE_ANNEX_COLLECTOR_MODE = Periodic
+STARTD_CRON_UPDATE_ANNEX_COLLECTOR_PERIOD = 60
+EOF
 
 echo ""
 echo "Executing HTC annex slurm script"
