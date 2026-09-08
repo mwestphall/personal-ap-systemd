@@ -9,22 +9,16 @@
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 INSTALL_SH="$REPO_DIR/install.sh"
-TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball> [base-dir]}"
-BASE_DIR="${2:-}"                                   # defaults to install.sh's own default (/scratch/$USER) if omitted
+CONDOR_DIR="${1:?Usage: sbatch resume-ap.sub <existing-ap-condor-dir>}"
 
 if [ ! -x "$INSTALL_SH" ]; then
   echo "ERROR: $INSTALL_SH not found or not executable"
   exit 1
 fi
 
-if [ ! -f "$TARBALL" ]; then
-  echo "ERROR: Specified HTCondor tarball $TARBALL does not exist"
+if [ ! -d "$CONDOR_DIR" ]; then
+  echo "ERROR: Specified AP condor dir $CONDOR_DIR does not exist"
   exit 1
 fi
 
-INSTALL_ARGS=(--tarball-path "$TARBALL")
-if [ -n "$BASE_DIR" ]; then
-  INSTALL_ARGS=(--base-dir "$BASE_DIR" --tarball-path "$TARBALL")
-fi
-
-exec "$INSTALL_SH" "${INSTALL_ARGS[@]}"
+exec "$INSTALL_SH" --condor-dir "$CONDOR_DIR"

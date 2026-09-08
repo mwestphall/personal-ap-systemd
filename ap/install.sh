@@ -15,22 +15,30 @@ BASE_DIR_DEFAULT="/scratch/$USER"
 
 usage() {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS] <tarball-path>
+Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS]
 
-Install a personal HTCondor Access Point (AP) from the HTCondor tarball
-at <tarball-path>, and run it in the foreground (intended for running
-the AP as a Slurm job; see ap.sub).
+Install a personal HTCondor Access Point (AP) from an HTCondor tarball,
+or resume one from an existing condor dir, and run it in the foreground
+(intended for running the AP as a Slurm job; see ap.sub). Exactly one
+of --tarball-path or --condor-dir must be given.
 
 Options:
-  --base-dir <path>    Base directory for the AP install, on storage
-                       shared with wherever condor tools will be run
-                       from (default: ${BASE_DIR_DEFAULT}).
-  --help               Print this help message and exit.
+  --base-dir <path>       Base directory for the AP install, on storage
+                          shared with wherever condor tools will be run
+                          from (default: ${BASE_DIR_DEFAULT}).
+  --tarball-path <path>   Install HTCondor from the tarball at <path>.
+  --condor-dir <path>     Resume the AP from an existing, already-
+                          configured condor dir instead of unpacking a
+                          fresh tarball. Skips choosing a random install
+                          directory, unpacking, and running
+                          make-ap-from-tarball.
+  --help                  Print this help message and exit.
 EOF
 }
 
 BASE_DIR="$BASE_DIR_DEFAULT"
 TARBALL_PATH=""
+CONDOR_DIR_OPT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -47,39 +55,74 @@ while [ $# -gt 0 ]; do
             BASE_DIR="$2"
             shift 2
             ;;
+        --tarball-path)
+            if [ $# -lt 2 ]; then
+                echo "error: --tarball-path requires a path argument" >&2
+                usage >&2
+                exit 1
+            fi
+            TARBALL_PATH="$2"
+            shift 2
+            ;;
+        --condor-dir)
+            if [ $# -lt 2 ]; then
+                echo "error: --condor-dir requires a path argument" >&2
+                usage >&2
+                exit 1
+            fi
+            CONDOR_DIR_OPT="$2"
+            shift 2
+            ;;
         *)
-            TARBALL_PATH="$1"
-            shift
+            echo "error: unknown argument: $1" >&2
+            usage >&2
+            exit 1
             ;;
     esac
 done
 
-if [ -z "$TARBALL_PATH" ]; then
-    echo "error: a tarball path is required" >&2
+if [ -n "$CONDOR_DIR_OPT" ] && [ -n "$TARBALL_PATH" ]; then
+    echo "error: --condor-dir and --tarball-path are mutually exclusive" >&2
     usage >&2
     exit 1
 fi
 
-if [ ! -f "$TARBALL_PATH" ]; then
-    echo "error: tarball not found at $TARBALL_PATH" >&2
+if [ -z "$CONDOR_DIR_OPT" ] && [ -z "$TARBALL_PATH" ]; then
+    echo "error: exactly one of --condor-dir or --tarball-path is required" >&2
+    usage >&2
     exit 1
 fi
 
-echo "==> Using base directory $BASE_DIR"
-mkdir -p "$BASE_DIR"
+if [ -n "$CONDOR_DIR_OPT" ]; then
+    if [ ! -d "$CONDOR_DIR_OPT" ]; then
+        echo "error: condor dir not found at $CONDOR_DIR_OPT" >&2
+        exit 1
+    fi
 
-# Use a randomly-suffixed install directory.
-SUFFIX="$RANDOM$RANDOM"
-CONDOR_DIR="$BASE_DIR/condor-$SUFFIX"
+    CONDOR_DIR="$CONDOR_DIR_OPT"
+    echo "==> Resuming AP from existing condor dir $CONDOR_DIR"
+else
+    if [ ! -f "$TARBALL_PATH" ]; then
+        echo "error: tarball not found at $TARBALL_PATH" >&2
+        exit 1
+    fi
 
-# --- Install HTCondor --------------------------------------------------
-# Unpack the tarball and configure it as a single-user AP.
-echo "==> Unpacking HTCondor to $CONDOR_DIR"
-mkdir -p "$CONDOR_DIR"
-tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
+    echo "==> Using base directory $BASE_DIR"
+    mkdir -p "$BASE_DIR"
 
-echo "==> Configuring HTCondor as a single-user AP"
-(cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
+    # Use a randomly-suffixed install directory.
+    SUFFIX="$RANDOM$RANDOM"
+    CONDOR_DIR="$BASE_DIR/condor-$SUFFIX"
+
+    # --- Install HTCondor --------------------------------------------------
+    # Unpack the tarball and configure it as a single-user AP.
+    echo "==> Unpacking HTCondor to $CONDOR_DIR"
+    mkdir -p "$CONDOR_DIR"
+    tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
+
+    echo "==> Configuring HTCondor as a single-user AP"
+    (cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
+fi
 
 echo "==> Updating shell environment with AP install"
 # shellcheck disable=SC1091
