@@ -122,6 +122,11 @@ else
 
     echo "==> Configuring HTCondor as a single-user AP"
     (cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
+
+    # Pin TRUST_DOMAIN to this install's own name rather than letting it
+    # default to a hostname-derived value, so IDTokens stay valid when the
+    # AP moves to a different Slurm node on resume.
+    echo "TRUST_DOMAIN = condor-$SUFFIX" > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf"
 fi
 
 echo "==> Updating shell environment with AP install"
