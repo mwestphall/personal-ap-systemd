@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# install.sh - Install a personal HTCondor Access Point (AP) and run it in
-# the foreground as a Slurm job. See ap.sub.
+# install.sh - Install a personal HTCondor Access Point (AP) from an
+# HTCondor tarball. See start.sh to run the installed AP, and ap.sub.
 #
 # This script performs the "Personal AP Install" steps described in
 # README.md. It is expected to be run from within a clone of the
@@ -15,30 +15,24 @@ BASE_DIR_DEFAULT="/scratch/$USER"
 
 usage() {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS]
+Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS] --tarball-path <path>
 
-Install a personal HTCondor Access Point (AP) from an HTCondor tarball,
-or resume one from an existing condor dir, and run it in the foreground
-(intended for running the AP as a Slurm job; see ap.sub). Exactly one
-of --tarball-path or --condor-dir must be given.
+Install a personal HTCondor Access Point (AP) from the HTCondor tarball
+at <path>. Prints the resulting install directory as
+"CONDOR_DIR=<path>" as its last line of output; see start.sh to
+actually run the installed AP.
 
 Options:
   --base-dir <path>       Base directory for the AP install, on storage
                           shared with wherever condor tools will be run
                           from (default: ${BASE_DIR_DEFAULT}).
   --tarball-path <path>   Install HTCondor from the tarball at <path>.
-  --condor-dir <path>     Resume the AP from an existing, already-
-                          configured condor dir instead of unpacking a
-                          fresh tarball. Skips choosing a random install
-                          directory, unpacking, and running
-                          make-ap-from-tarball.
   --help                  Print this help message and exit.
 EOF
 }
 
 BASE_DIR="$BASE_DIR_DEFAULT"
 TARBALL_PATH=""
-CONDOR_DIR_OPT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -64,15 +58,6 @@ while [ $# -gt 0 ]; do
             TARBALL_PATH="$2"
             shift 2
             ;;
-        --condor-dir)
-            if [ $# -lt 2 ]; then
-                echo "error: --condor-dir requires a path argument" >&2
-                usage >&2
-                exit 1
-            fi
-            CONDOR_DIR_OPT="$2"
-            shift 2
-            ;;
         *)
             echo "error: unknown argument: $1" >&2
             usage >&2
@@ -81,94 +66,42 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -n "$CONDOR_DIR_OPT" ] && [ -n "$TARBALL_PATH" ]; then
-    echo "error: --condor-dir and --tarball-path are mutually exclusive" >&2
+if [ -z "$TARBALL_PATH" ]; then
+    echo "error: --tarball-path is required" >&2
     usage >&2
     exit 1
 fi
 
-if [ -z "$CONDOR_DIR_OPT" ] && [ -z "$TARBALL_PATH" ]; then
-    echo "error: exactly one of --condor-dir or --tarball-path is required" >&2
-    usage >&2
+if [ ! -f "$TARBALL_PATH" ]; then
+    echo "error: tarball not found at $TARBALL_PATH" >&2
     exit 1
 fi
 
-if [ -n "$CONDOR_DIR_OPT" ]; then
-    if [ ! -d "$CONDOR_DIR_OPT" ]; then
-        echo "error: condor dir not found at $CONDOR_DIR_OPT" >&2
-        exit 1
-    fi
+echo "==> Using base directory $BASE_DIR"
+mkdir -p "$BASE_DIR"
 
-    CONDOR_DIR="$CONDOR_DIR_OPT"
-    echo "==> Resuming AP from existing condor dir $CONDOR_DIR"
-else
-    if [ ! -f "$TARBALL_PATH" ]; then
-        echo "error: tarball not found at $TARBALL_PATH" >&2
-        exit 1
-    fi
+# Use a randomly-suffixed install directory.
+SUFFIX="$RANDOM$RANDOM"
+CONDOR_DIR="$BASE_DIR/condor-$SUFFIX"
 
-    echo "==> Using base directory $BASE_DIR"
-    mkdir -p "$BASE_DIR"
+# --- Install HTCondor --------------------------------------------------
+# Unpack the tarball and configure it as a single-user AP.
+echo "==> Unpacking HTCondor to $CONDOR_DIR"
+mkdir -p "$CONDOR_DIR"
+tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
 
-    # Use a randomly-suffixed install directory.
-    SUFFIX="$RANDOM$RANDOM"
-    CONDOR_DIR="$BASE_DIR/condor-$SUFFIX"
+echo "==> Configuring HTCondor as a single-user AP"
+(cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
 
-    # --- Install HTCondor --------------------------------------------------
-    # Unpack the tarball and configure it as a single-user AP.
-    echo "==> Unpacking HTCondor to $CONDOR_DIR"
-    mkdir -p "$CONDOR_DIR"
-    tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
-
-    echo "==> Configuring HTCondor as a single-user AP"
-    (cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
-
-    # Pin TRUST_DOMAIN to this install's own name rather than letting it
-    # default to a hostname-derived value, so IDTokens stay valid when the
-    # AP moves to a different Slurm node on resume.
-    echo "TRUST_DOMAIN = condor-$SUFFIX" > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf"
-fi
-
-echo "==> Updating shell environment with AP install"
-# shellcheck disable=SC1091
-. "$CONDOR_DIR/condor.sh"
+# Pin TRUST_DOMAIN to this install's own name rather than letting it
+# default to a hostname-derived value, so IDTokens stay valid when the
+# AP moves to a different Slurm node on resume.
+echo "TRUST_DOMAIN = condor-$SUFFIX" > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf"
 
 # --- Configure HTCondor for Annex Mode --------------------------------------
 # Enable the optional Annex feature.
 echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
-# --- Run the AP (e.g. as a Slurm job) ----------------------------------
-# Pin this node's hostname via NETWORK_HOSTNAME in the shared config. Clear
-# any previous pin first, so a resumed AP re-detects its real hostname
-# instead of reading back the last run's stale value.
-rm -f "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
-AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
-echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"
-echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
-
-echo "==> Starting HTCondor AP"
-"$CONDOR_DIR/sbin/condor_master" -f &
-MASTER_PID=$!
-
-# --- Enable IDToken Authentication --------------------------------------
-# Wait up to 10 seconds for the AP to provision its pool password.
-POOL_FILE="$CONDOR_DIR/local/passwords.d/POOL"
-WAITED=0
-while [ ! -f "$POOL_FILE" ] && [ "$WAITED" -lt 10 ]; do
-    sleep 1
-    WAITED=$((WAITED + 1))
-done
-
-# Issue a sample IDToken with schedd READ/WRITE authorization into the
-# AP's tokens.d directory.
-echo "==> Generating IDToken for schedd access"
-TOKEN_NAME="testing"
-IDENTITY="$(whoami)@$(condor_config_val UID_DOMAIN)"
-condor_token_create -identity "$IDENTITY" -authz READ -authz WRITE -token "$TOKEN_NAME"
-echo "    Generated sample IDToken for $IDENTITY at $CONDOR_DIR/local/tokens.d/$TOKEN_NAME"
-
-echo "==> To interact with this AP from the login node, source the condor env file at $CONDOR_DIR/condor.sh:"
-echo "    '. $CONDOR_DIR/condor.sh'"
-
-wait "$MASTER_PID"
+echo "==> Install complete"
+echo "CONDOR_DIR=$CONDOR_DIR"

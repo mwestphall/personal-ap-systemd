@@ -8,11 +8,11 @@
 #SBATCH --error=personal-ap.debug
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-INSTALL_SH="$REPO_DIR/install.sh"
+START_SH="$REPO_DIR/start.sh"
 CONDOR_DIR="${1:?Usage: sbatch resume-ap.sub <existing-ap-condor-dir>}"
 
-if [ ! -x "$INSTALL_SH" ]; then
-  echo "ERROR: $INSTALL_SH not found or not executable"
+if [ ! -x "$START_SH" ]; then
+  echo "ERROR: $START_SH not found or not executable"
   exit 1
 fi
 
@@ -21,4 +21,4 @@ if [ ! -d "$CONDOR_DIR" ]; then
   exit 1
 fi
 
-exec "$INSTALL_SH" --condor-dir "$CONDOR_DIR"
+exec "$START_SH" --condor-dir "$CONDOR_DIR"

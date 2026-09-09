@@ -9,11 +9,17 @@
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 INSTALL_SH="$REPO_DIR/install.sh"
+START_SH="$REPO_DIR/start.sh"
 TARBALL="${1:?Usage: sbatch ap.sub <path-to-condor-tarball> [base-dir]}"
 BASE_DIR="${2:-}"                                   # defaults to install.sh's own default (/scratch/$USER) if omitted
 
 if [ ! -x "$INSTALL_SH" ]; then
   echo "ERROR: $INSTALL_SH not found or not executable"
+  exit 1
+fi
+
+if [ ! -x "$START_SH" ]; then
+  echo "ERROR: $START_SH not found or not executable"
   exit 1
 fi
 
@@ -27,4 +33,17 @@ if [ -n "$BASE_DIR" ]; then
   INSTALL_ARGS=(--base-dir "$BASE_DIR" --tarball-path "$TARBALL")
 fi
 
-exec "$INSTALL_SH" "${INSTALL_ARGS[@]}"
+if ! INSTALL_OUTPUT="$("$INSTALL_SH" "${INSTALL_ARGS[@]}")"; then
+  echo "$INSTALL_OUTPUT"
+  echo "ERROR: install.sh failed"
+  exit 1
+fi
+echo "$INSTALL_OUTPUT"
+
+CONDOR_DIR="$(echo "$INSTALL_OUTPUT" | sed -n 's/^CONDOR_DIR=//p' | tail -1)"
+if [ -z "$CONDOR_DIR" ]; then
+  echo "ERROR: install.sh did not report a CONDOR_DIR"
+  exit 1
+fi
+
+exec "$START_SH" --condor-dir "$CONDOR_DIR"
