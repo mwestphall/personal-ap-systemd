@@ -90,7 +90,7 @@ To launch an AP Slurm job:
    as appropriate:
 
     ```
-    $ cd $SHARED_FS/personal-ap-systemd
+    $ cd $SHARED_FS/personal-ap-systemd/ap
     $ sbatch -p <partition name> ap.sub $SHARED_FS/condor.tar.gz $SHARED_FS
     ```
 
@@ -209,6 +209,7 @@ The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launche
 Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and EP tarball location as appropriate:
 
 ```
+$ cd $SHARED_FS/personal-ap-systemd/ep
 $ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar>
 ```
 
@@ -232,3 +233,15 @@ $ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar>
     Hello, World!
     I am running on hpc-worker123
     ```
+
+# Resume an Access Point
+
+The AP configured by `ap.sub` will exit after 4 hours by default. To resume your AP after it exits,
+launch a new job out of the existing AP directory with `resume-ap.sub`:
+
+```
+$ cd $SHARED_FS/personal-ap-systemd/ap
+$ sbatch -p <partition name> reume-ap.sub $SHARED_FS/<existing-ap-condor-dir>
+```
+
+EPs launched via `ep/annex-ep.sub` will automatically reconnect to an AP resumed via `ap/resume-ap.sub`
