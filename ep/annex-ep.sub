@@ -32,18 +32,6 @@ echo "Executing annex setup script"
 bash annex-setup.sh
 
 echo ""
-echo "Fetching the AP's stable domain"
-# ANNEX_TOKEN_DOMAIN is pinned by install.sh to a stable, install-specific
-# value (unlike UID_DOMAIN/TRUST_DOMAIN's hostname-derived defaults), so
-# both the token we mint below and the EP's own TRUST_DOMAIN agree with the
-# AP regardless of which node the AP is currently running on.
-AP_DOMAIN="$(
-    # shellcheck disable=SC1091
-    . "$AP_DIR/condor.sh"
-    condor_config_val ANNEX_TOKEN_DOMAIN
-)"
-
-echo ""
 echo "Minting a properly-scoped annex token from the AP's signing key"
 # condor_token_fetch (used by `htcondor annex create` to mint annex.token)
 # authenticates its request using whatever IDToken is already reachable on
@@ -53,10 +41,18 @@ echo "Minting a properly-scoped annex token from the AP's signing key"
 # than the READ/WRITE/ADVERTISE_STARTD/ADVERTISE_MASTER/DAEMON it actually
 # needs. Mint our own replacement offline instead, using the AP's own
 # signing key directly - no request/approval round-trip involved.
+#
+# Use ANNEX_TOKEN_DOMAIN (pinned by install.sh to a stable, install-specific
+# value) rather than UID_DOMAIN: the HPC_ANNEX job transform matches
+# submitted jobs against "$(MY.Owner)@$(ANNEX_TOKEN_DOMAIN)" evaluated fresh
+# at submit time, so baking in UID_DOMAIN (hostname-derived, and different
+# every time the AP resumes on a new node) would stop matching as soon as
+# the AP moved.
 (
     # shellcheck disable=SC1091
     . "$AP_DIR/condor.sh"
-    condor_token_create -key AP -identity "$(whoami)@${AP_DOMAIN}" \
+    IDENTITY="$(whoami)@$(condor_config_val ANNEX_TOKEN_DOMAIN)"
+    condor_token_create -key AP -identity "$IDENTITY" \
         -authz READ -authz WRITE -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -authz DAEMON
 ) > annex.token
 
@@ -67,14 +63,7 @@ fi
 
 echo ""
 echo "Configuring dynamic collector lookup"
-# Also pin the EP's own TRUST_DOMAIN to the AP's stable domain, rather than
-# leaving it at its own hostname-derived default - IDTOKENS auth uses the
-# client's self-declared TRUST_DOMAIN when presenting a credential, so a
-# mismatch here causes the EP's AuthenticatedIdentity (as seen by the AP)
-# to reflect the EP's own hostname instead of the token's actual identity.
 cat >> 20-annex-pilot-instance <<EOF
-
-TRUST_DOMAIN = ${AP_DOMAIN}
 
 SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
 
