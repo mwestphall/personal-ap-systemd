@@ -93,10 +93,16 @@ tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
 echo "==> Configuring HTCondor as a single-user AP"
 (cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
 
-# Pin TRUST_DOMAIN to this install's own name rather than letting it
-# default to a hostname-derived value, so IDTokens stay valid when the
-# AP moves to a different Slurm node on resume.
-echo "TRUST_DOMAIN = condor-$SUFFIX" > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf"
+# Pin TRUST_DOMAIN and ANNEX_TOKEN_DOMAIN to this install's own name rather
+# than letting them default to hostname-derived values (TRUST_DOMAIN
+# defaults to FULL_HOSTNAME; ANNEX_TOKEN_DOMAIN defaults to
+# $(UID_DOMAIN) = $(FULL_HOSTNAME)), so IDTokens and annex job/EP identity
+# matching stay valid when the AP moves to a different Slurm node on
+# resume.
+cat > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf" <<EOF
+TRUST_DOMAIN = condor-$SUFFIX
+ANNEX_TOKEN_DOMAIN = condor-$SUFFIX
+EOF
 
 # --- Configure HTCondor for Annex Mode --------------------------------------
 # Enable the optional Annex feature.

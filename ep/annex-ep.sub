@@ -41,10 +41,17 @@ echo "Minting a properly-scoped annex token from the AP's signing key"
 # than the READ/WRITE/ADVERTISE_STARTD/ADVERTISE_MASTER/DAEMON it actually
 # needs. Mint our own replacement offline instead, using the AP's own
 # signing key directly - no request/approval round-trip involved.
+#
+# Use ANNEX_TOKEN_DOMAIN (pinned by install.sh to a stable, install-specific
+# value) rather than UID_DOMAIN: the HPC_ANNEX job transform matches
+# submitted jobs against "$(MY.Owner)@$(ANNEX_TOKEN_DOMAIN)" evaluated fresh
+# at submit time, so baking in UID_DOMAIN (hostname-derived, and different
+# every time the AP resumes on a new node) would stop matching as soon as
+# the AP moved.
 (
     # shellcheck disable=SC1091
     . "$AP_DIR/condor.sh"
-    IDENTITY="$(whoami)@$(condor_config_val UID_DOMAIN)"
+    IDENTITY="$(whoami)@$(condor_config_val ANNEX_TOKEN_DOMAIN)"
     condor_token_create -key AP -identity "$IDENTITY" \
         -authz READ -authz WRITE -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -authz DAEMON
 ) > annex.token
