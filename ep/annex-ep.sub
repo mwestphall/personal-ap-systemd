@@ -32,6 +32,29 @@ echo "Executing annex setup script"
 bash annex-setup.sh
 
 echo ""
+echo "Minting a properly-scoped annex token from the AP's signing key"
+# condor_token_fetch (used by `htcondor annex create` to mint annex.token)
+# authenticates its request using whatever IDToken is already reachable on
+# the shared filesystem, and a token can't be used to mint one with broader
+# scope than itself - so the bundled annex.token silently ends up as
+# READ/WRITE-only, matching install.sh's login-node testing token, rather
+# than the READ/WRITE/ADVERTISE_STARTD/ADVERTISE_MASTER/DAEMON it actually
+# needs. Mint our own replacement offline instead, using the AP's own
+# signing key directly - no request/approval round-trip involved.
+(
+    # shellcheck disable=SC1091
+    . "$AP_DIR/condor.sh"
+    IDENTITY="$(whoami)@$(condor_config_val UID_DOMAIN)"
+    condor_token_create -key AP -identity "$IDENTITY" \
+        -authz READ -authz WRITE -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -authz DAEMON
+) > annex.token
+
+if [ ! -s annex.token ]; then
+  echo "ERROR: Failed to mint a properly-scoped annex token"
+  exit 1
+fi
+
+echo ""
 echo "Configuring dynamic collector lookup"
 cat >> 20-annex-pilot-instance <<EOF
 
