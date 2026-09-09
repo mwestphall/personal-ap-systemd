@@ -109,5 +109,16 @@ EOF
 echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
+# FS auth can succeed for EP connections since every Slurm node shares a
+# filesystem, which lets the EP authenticate as its own local
+# user@hostname instead of via the IDToken we issue it - forcing IDTOKENS
+# for the levels an EP actually needs ensures its AuthenticatedIdentity
+# reflects the token's identity instead.
+cat > "$CONDOR_DIR/local/config.d/14-ap-force-idtoken.conf" <<EOF
+AP_COLLECTOR.SEC_ADVERTISE_STARTD_AUTHENTICATION_METHODS = IDTOKENS
+AP_COLLECTOR.SEC_ADVERTISE_MASTER_AUTHENTICATION_METHODS = IDTOKENS
+AP_COLLECTOR.SEC_DAEMON_AUTHENTICATION_METHODS = IDTOKENS
+EOF
+
 echo "==> Install complete"
 echo "CONDOR_DIR=$CONDOR_DIR"
