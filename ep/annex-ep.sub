@@ -62,14 +62,21 @@ if [ ! -s annex.token ]; then
 fi
 
 echo ""
-echo "Configuring dynamic collector lookup"
+echo "Configuring dynamic collector and schedd-name lookup"
+# AP_SCHEDD_ADDRESS_FILE is just a convenience macro for passing this path to
+# the cron job below - it is NOT the real SCHEDD_ADDRESS_FILE knob, and
+# setting that one wouldn't help here: STARTD_DIRECT_ATTACH_SCHEDD_POOL being
+# set forces the STARTD's direct-attach lookup through a collector query by
+# name rather than a local address-file read (see update-annex-collector.sh
+# for the full explanation), so ANNEX_PILOT_COLLECTOR and
+# ANNEX_PILOT_SCHEDD_NAME both need to be kept in sync dynamically instead.
 cat >> 20-annex-pilot-instance <<EOF
 
-SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
+AP_SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
 
 STARTD_CRON_JOBLIST = \$(STARTD_CRON_JOBLIST) UPDATE_ANNEX_COLLECTOR
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_EXECUTABLE = ${SCRIPT_DIR}/update-annex-collector.sh
-STARTD_CRON_UPDATE_ANNEX_COLLECTOR_ARGS = \$(SCHEDD_ADDRESS_FILE)
+STARTD_CRON_UPDATE_ANNEX_COLLECTOR_ARGS = \$(AP_SCHEDD_ADDRESS_FILE)
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_MODE = Periodic
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_PERIOD = 60
 STARTD_CRON_LOG_NON_ZERO_EXIT = True
