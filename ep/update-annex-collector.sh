@@ -1,18 +1,8 @@
 #!/bin/bash
-# Read the AP's Machine and Name attributes from its schedd address file,
-# write ANNEX_PILOT_COLLECTOR and ANNEX_PILOT_SCHEDD_NAME into a standalone
-# config file to track that host's AP collector and schedd name, and SIGHUP
-# condor_master (our great-grandparent process) to pick up the change.
-#
-# ANNEX_PILOT_SCHEDD_NAME needs refreshing too, not just ANNEX_PILOT_COLLECTOR:
-# STARTD_DIRECT_ATTACH_SCHEDD_NAME/_POOL together make the STARTD's direct-attach
-# do a collector query for Name == ANNEX_PILOT_SCHEDD_NAME (see
-# ResMgr::directAttachToSchedd() and Daemon::getDaemonInfo() - specifying a pool
-# forces a collector query by name, bypassing any local address file entirely).
-# That value is otherwise a static string baked in once by annex-setup.sh at
-# `htcondor annex create` time, so it goes stale as soon as the AP's schedd
-# starts advertising a different Name (e.g. after resuming on a new Slurm
-# node), and the STARTD's query stops matching anything.
+# STARTD_CRON job: read the AP's Machine/Name from its schedd address file,
+# refresh ANNEX_PILOT_COLLECTOR/ANNEX_PILOT_SCHEDD_NAME, and SIGHUP
+# condor_master (our great-grandparent process) to reconfig. See notes.md's
+# "AP Address Polling".
 ADDR_FILE="$1"
 MACHINE="$(grep -m1 '^Machine' "$ADDR_FILE" | sed -E 's/^Machine[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/')"
 if [ -z "$MACHINE" ]; then

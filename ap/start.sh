@@ -63,9 +63,8 @@ echo "==> Updating shell environment with AP install"
 . "$CONDOR_DIR/condor.sh"
 
 # --- Run the AP (e.g. as a Slurm job) ----------------------------------
-# Pin this node's hostname via NETWORK_HOSTNAME in the shared config. Clear
-# any previous pin first, so a resumed AP re-detects its real hostname
-# instead of reading back the last run's stale value.
+# Pin NETWORK_HOSTNAME in the shared config, removing any previous pin
+# first so a resumed AP doesn't copy the old instance's hostname.
 rm -f "$CONDOR_DIR/local/config.d/13-ap-hostname.conf"
 AP_FULL_HOSTNAME="$(condor_config_val FULL_HOSTNAME)"
 echo "==> Pinning hostname to $AP_FULL_HOSTNAME via NETWORK_HOSTNAME"

@@ -33,21 +33,10 @@ bash annex-setup.sh
 
 echo ""
 echo "Minting a properly-scoped annex token from the AP's signing key"
-# condor_token_fetch (used by `htcondor annex create` to mint annex.token)
-# authenticates its request using whatever IDToken is already reachable on
-# the shared filesystem, and a token can't be used to mint one with broader
-# scope than itself - so the bundled annex.token silently ends up as
-# READ/WRITE-only, matching install.sh's login-node testing token, rather
-# than the READ/WRITE/ADVERTISE_STARTD/ADVERTISE_MASTER/DAEMON it actually
-# needs. Mint our own replacement offline instead, using the AP's own
-# signing key directly - no request/approval round-trip involved.
-#
-# Use ANNEX_TOKEN_DOMAIN (pinned by install.sh to a stable, install-specific
-# value) rather than UID_DOMAIN: the HPC_ANNEX job transform matches
-# submitted jobs against "$(MY.Owner)@$(ANNEX_TOKEN_DOMAIN)" evaluated fresh
-# at submit time, so baking in UID_DOMAIN (hostname-derived, and different
-# every time the AP resumes on a new node) would stop matching as soon as
-# the AP moved.
+# The bundled annex.token is scope-clipped to READ/WRITE; mint a
+# replacement offline against the AP's own signing key, using the pinned
+# ANNEX_TOKEN_DOMAIN so it stays valid across AP resumes. See notes.md's
+# "Explicit IDToken Creation".
 (
     # shellcheck disable=SC1091
     . "$AP_DIR/condor.sh"
@@ -63,13 +52,8 @@ fi
 
 echo ""
 echo "Configuring dynamic collector and schedd-name lookup"
-# AP_SCHEDD_ADDRESS_FILE is just a convenience macro for passing this path to
-# the cron job below - it is NOT the real SCHEDD_ADDRESS_FILE knob, and
-# setting that one wouldn't help here: STARTD_DIRECT_ATTACH_SCHEDD_POOL being
-# set forces the STARTD's direct-attach lookup through a collector query by
-# name rather than a local address-file read (see update-annex-collector.sh
-# for the full explanation), so ANNEX_PILOT_COLLECTOR and
-# ANNEX_PILOT_SCHEDD_NAME both need to be kept in sync dynamically instead.
+# AP_SCHEDD_ADDRESS_FILE just passes this path to the cron job below; see
+# notes.md's "AP Address Polling" and update-annex-collector.sh.
 cat >> 20-annex-pilot-instance <<EOF
 
 AP_SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address

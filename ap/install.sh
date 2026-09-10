@@ -93,14 +93,9 @@ tar -xf "$TARBALL_PATH" -C "$CONDOR_DIR" --strip-components=1
 echo "==> Configuring HTCondor as a single-user AP"
 (cd "$CONDOR_DIR" && bin/make-ap-from-tarball)
 
-# Pin TRUST_DOMAIN, ANNEX_TOKEN_DOMAIN, and SCHEDD_NAME to this install's
-# own name rather than letting them default to hostname-derived values
-# (TRUST_DOMAIN defaults to FULL_HOSTNAME; ANNEX_TOKEN_DOMAIN defaults to
-# $(UID_DOMAIN) = $(FULL_HOSTNAME); SCHEDD_NAME defaults to FULL_HOSTNAME
-# too), so IDTokens, annex job/EP identity matching, and the EP's
-# STARTD_DIRECT_ATTACH_SCHEDD_NAME lookup (a collector query by Name, which
-# a hostname-derived SCHEDD_NAME would silently stop matching every time
-# the AP resumes on a different Slurm node) all stay valid across resumes.
+# Pin daemon names, which otherwise default to this node's FULL_HOSTNAME,
+# so they stay consistent across resumes on a different Slurm node. See
+# notes.md's "Daemon Name Pinning".
 cat > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf" <<EOF
 TRUST_DOMAIN = condor-$SUFFIX
 ANNEX_TOKEN_DOMAIN = condor-$SUFFIX
@@ -112,22 +107,10 @@ EOF
 echo "==> Installing Annex configuration"
 cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
-# FS auth can succeed for EP connections since every Slurm node shares a
-# filesystem, which lets the EP authenticate as its own local
-# user@hostname instead of via the IDToken we issue it. Restricting only
-# the specific levels an EP needs (e.g. SEC_DAEMON_AUTHENTICATION_METHODS)
-# isn't enough: SECMAN caches and reuses a negotiated session across
-# multiple commands, so if some other, unrestricted level (e.g. READ)
-# happens to establish the session first via FS, that FS-derived identity
-# gets reused for later commands on the same session regardless of their
-# own level's method restriction. Forcing IDTOKENS at
-# SEC_DEFAULT_AUTHENTICATION_METHODS scope instead means no session to
-# these daemons can be established via FS in the first place, no matter
-# which command starts it.
-#
-# The resulting identity then also needs an explicit ALLOW_DAEMON entry,
-# since the default (condor@*, condor@password) doesn't match our own
-# user@domain tokens.
+# Force IDToken auth for the EP-facing daemons (an EP scheduled onto the
+# AP's own node could otherwise authenticate via FS with the wrong
+# identity), and grant its custom subject DAEMON access for schedd direct
+# connect and CCB registration. See notes.md's "Force IDToken Auth".
 cat > "$CONDOR_DIR/local/config.d/14-ap-force-idtoken.conf" <<EOF
 AP_COLLECTOR.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
 SCHEDD.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
