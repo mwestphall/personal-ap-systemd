@@ -112,12 +112,19 @@ cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 # FS auth can succeed for EP connections since every Slurm node shares a
 # filesystem, which lets the EP authenticate as its own local
 # user@hostname instead of via the IDToken we issue it - forcing IDTOKENS
-# for the levels an EP actually needs ensures its AuthenticatedIdentity
-# reflects the token's identity instead.
+# for the levels an EP actually needs (both to advertise to AP_COLLECTOR
+# and to direct-attach to the schedd) ensures its AuthenticatedIdentity
+# reflects the token's identity instead. That identity then also needs an
+# explicit ALLOW_DAEMON entry, since the default (condor@*, condor@password)
+# doesn't match our own user@domain tokens.
 cat > "$CONDOR_DIR/local/config.d/14-ap-force-idtoken.conf" <<EOF
 AP_COLLECTOR.SEC_ADVERTISE_STARTD_AUTHENTICATION_METHODS = IDTOKENS
 AP_COLLECTOR.SEC_ADVERTISE_MASTER_AUTHENTICATION_METHODS = IDTOKENS
 AP_COLLECTOR.SEC_DAEMON_AUTHENTICATION_METHODS = IDTOKENS
+SCHEDD.SEC_DAEMON_AUTHENTICATION_METHODS = IDTOKENS
+
+AP_COLLECTOR.ALLOW_DAEMON = \$(ALLOW_DAEMON), $(whoami)@condor-$SUFFIX
+SCHEDD.ALLOW_DAEMON = \$(ALLOW_DAEMON), $(whoami)@condor-$SUFFIX
 EOF
 
 echo "==> Install complete"
