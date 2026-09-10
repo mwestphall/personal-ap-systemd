@@ -111,17 +111,23 @@ cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 
 # FS auth can succeed for EP connections since every Slurm node shares a
 # filesystem, which lets the EP authenticate as its own local
-# user@hostname instead of via the IDToken we issue it - forcing IDTOKENS
-# for the levels an EP actually needs (both to advertise to AP_COLLECTOR
-# and to direct-attach to the schedd) ensures its AuthenticatedIdentity
-# reflects the token's identity instead. That identity then also needs an
-# explicit ALLOW_DAEMON entry, since the default (condor@*, condor@password)
-# doesn't match our own user@domain tokens.
+# user@hostname instead of via the IDToken we issue it. Restricting only
+# the specific levels an EP needs (e.g. SEC_DAEMON_AUTHENTICATION_METHODS)
+# isn't enough: SECMAN caches and reuses a negotiated session across
+# multiple commands, so if some other, unrestricted level (e.g. READ)
+# happens to establish the session first via FS, that FS-derived identity
+# gets reused for later commands on the same session regardless of their
+# own level's method restriction. Forcing IDTOKENS at
+# SEC_DEFAULT_AUTHENTICATION_METHODS scope instead means no session to
+# these daemons can be established via FS in the first place, no matter
+# which command starts it.
+#
+# The resulting identity then also needs an explicit ALLOW_DAEMON entry,
+# since the default (condor@*, condor@password) doesn't match our own
+# user@domain tokens.
 cat > "$CONDOR_DIR/local/config.d/14-ap-force-idtoken.conf" <<EOF
-AP_COLLECTOR.SEC_ADVERTISE_STARTD_AUTHENTICATION_METHODS = IDTOKENS
-AP_COLLECTOR.SEC_ADVERTISE_MASTER_AUTHENTICATION_METHODS = IDTOKENS
-AP_COLLECTOR.SEC_DAEMON_AUTHENTICATION_METHODS = IDTOKENS
-SCHEDD.SEC_DAEMON_AUTHENTICATION_METHODS = IDTOKENS
+AP_COLLECTOR.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
+SCHEDD.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
 
 AP_COLLECTOR.ALLOW_DAEMON = \$(ALLOW_DAEMON), condor@condor-$SUFFIX
 SCHEDD.ALLOW_DAEMON = \$(ALLOW_DAEMON), condor@condor-$SUFFIX
