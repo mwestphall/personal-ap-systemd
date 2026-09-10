@@ -104,7 +104,7 @@ echo "==> Configuring HTCondor as a single-user AP"
 cat > "$CONDOR_DIR/local/config.d/12-ap-trust-domain.conf" <<EOF
 TRUST_DOMAIN = condor-$SUFFIX
 ANNEX_TOKEN_DOMAIN = condor-$SUFFIX
-SCHEDD_NAME = condor-$SUFFIX
+SCHEDD_NAME = condor-$SUFFIX@condor-$SUFFIX
 EOF
 
 # --- Configure HTCondor for Annex Mode --------------------------------------
