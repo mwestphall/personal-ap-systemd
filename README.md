@@ -206,16 +206,16 @@ Please copy the file annex-test-annex.tar to the HPC system
 
 The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
 
-Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and EP tarball location as appropriate:
+Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition, EP tarball location, and AP location as appropriate:
 
 ```
 $ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar>
+$ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar> <path/to/ap/config-dir>
 ```
 
 ## Confirm that your Job Runs on the Annex
 
-1. Confirm that your Annex EP has successfully connected your AP, and that your job is running on the Annex:
+1. Confirm that your Annex EP has successfully connected to your AP, and that your job is running on the Annex:
 
     ```
     $ htcondor annex status test-annex
