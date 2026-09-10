@@ -51,7 +51,7 @@ echo "Minting a properly-scoped annex token from the AP's signing key"
 (
     # shellcheck disable=SC1091
     . "$AP_DIR/condor.sh"
-    IDENTITY="$(whoami)@$(condor_config_val ANNEX_TOKEN_DOMAIN)"
+    IDENTITY="condor@$(condor_config_val ANNEX_TOKEN_DOMAIN)"
     condor_token_create -key AP -identity "$IDENTITY" \
         -authz READ -authz WRITE -authz ADVERTISE_STARTD -authz ADVERTISE_MASTER -authz DAEMON
 ) > annex.token
