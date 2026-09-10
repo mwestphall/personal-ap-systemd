@@ -125,15 +125,23 @@ cp "$REPO_DIR/11-ap-annex.conf" "$CONDOR_DIR/local/config.d/"
 # these daemons can be established via FS in the first place, no matter
 # which command starts it.
 #
-# The resulting identity then also needs an explicit ALLOW_DAEMON entry,
-# since the default (condor@*, condor@password) doesn't match our own
-# user@domain tokens.
+# The resulting identity then also needs an explicit ALLOW_DAEMON entry on
+# AP_COLLECTOR, since the default (condor@*, condor@password) doesn't match
+# our own user@domain tokens, and CCB_REGISTER (the EP registering with
+# AP_COLLECTOR for CCB) is hard-gated at DAEMON level
+# (ccb_server.cpp's Register_CommandWithPayload call). SCHEDD needs no such
+# grant: DIRECT_ATTACH is registered at WRITE, not DAEMON (schedd.cpp's
+# CmdDirectAttach registration) - annex.token's WRITE authz already covers
+# it. The schedd's own internal DAEMON check on DIRECT_ATTACH
+# (daemonCore->Verify("DIRECT_ATTACH", DAEMON, ...)) only decides whether
+# the resulting slot gets ATTR_RESTRICT_TO_AUTHENTICATED_IDENTITY set, not
+# whether the command is allowed at all - so a "PERMISSION DENIED ...
+# DIRECT_ATTACH, access level DAEMON" log line is expected and harmless.
 cat > "$CONDOR_DIR/local/config.d/14-ap-force-idtoken.conf" <<EOF
 AP_COLLECTOR.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
 SCHEDD.SEC_DEFAULT_AUTHENTICATION_METHODS = IDTOKENS
 
 AP_COLLECTOR.ALLOW_DAEMON = \$(ALLOW_DAEMON), $(whoami)@condor-$SUFFIX
-SCHEDD.ALLOW_DAEMON = \$(ALLOW_DAEMON), $(whoami)@condor-$SUFFIX
 EOF
 
 echo "==> Install complete"
