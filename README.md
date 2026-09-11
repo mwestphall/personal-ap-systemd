@@ -74,7 +74,7 @@ $ git clone https://github.com/mwestphall/personal-ap-systemd
 
 # Schedule an Access Point on your Slurm Cluster
 
-The provided [ap.sub](./ap.sub) and [install.sh](./install.sh) scripts launch a Slurm job that:
+The provided [ap.sub](./ap/ap.sub) and [install.sh](./ap/install.sh) scripts launch a Slurm job that:
 
 1. Unpacks the HTCondor tarball from the previous step.
 
@@ -83,6 +83,7 @@ The provided [ap.sub](./ap.sub) and [install.sh](./install.sh) scripts launch a 
 1. Creates configuration that points HTCondor command line tools invoked from the login 
    node at your running AP job.
 
+**Note**: `ap.sub` creates a new AP from scratch. To resume a previously scheduled AP, see [Resume an Access Point](#resume-an-access-point).
 
 To launch an AP Slurm job:
 
