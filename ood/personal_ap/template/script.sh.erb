@@ -10,9 +10,9 @@ set -euo pipefail
 
 AP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-WORKING_DIR="<%= context.working_dir %>"
-TARBALL_PATH="<%= context.tarball_path %>"
-BASE_DIR="<%= context.base_dir %>"
+WORKING_DIR="<%= working_dir %>"
+TARBALL_PATH="<%= tarball_path %>"
+BASE_DIR="<%= base_dir %>"
 
 if [ -n "$WORKING_DIR" ]; then
     echo "==> Resuming existing AP at $WORKING_DIR"

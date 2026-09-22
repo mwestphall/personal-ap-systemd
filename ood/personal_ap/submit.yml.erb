@@ -4,10 +4,10 @@ batch_connect:
 script:
   native:
     - "-p"
-    - "<%= context.slurm_partition %>"
+    - "<%= slurm_partition %>"
     - "-c"
-    - "<%= context.cpus %>"
+    - "<%= cpus %>"
     - "--mem"
-    - "<%= context.memory %>G"
+    - "<%= memory %>G"
     - "-t"
-    - "<%= context.time_limit %>"
+    - "<%= time_limit %>"
