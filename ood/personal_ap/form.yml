@@ -1,7 +1,7 @@
 ---
 cluster: "*" # Glob: show a dropdown of every cluster configured on this OOD instance.
 form:
-  - partition
+  - slurm_partition
   - cpus
   - memory
   - time_limit
@@ -10,7 +10,7 @@ form:
   - base_dir
 
 attributes:
-  partition:
+  slurm_partition:
     widget: text_field
     label: "Slurm partition"
     required: true
