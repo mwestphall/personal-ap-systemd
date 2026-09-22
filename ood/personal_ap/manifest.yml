@@ -2,6 +2,7 @@
 name: Personal HTCondor AP
 category: Interactive Apps
 subcategory: Servers
+role: batch_connect
 description: |
   Launch a personal HTCondor Access Point (AP) as a Slurm job. A thin wrapper around
   ap/install.sh and ap/start.sh; see the repository's README.md and notes.md for background.
