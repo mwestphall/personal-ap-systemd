@@ -80,8 +80,11 @@ fi
 echo "==> Using base directory $BASE_DIR"
 mkdir -p "$BASE_DIR"
 
-# Use a randomly-suffixed install directory.
-SUFFIX="$RANDOM$RANDOM"
+# Suffix the install directory with the Slurm job ID when running as a
+# Slurm job (the common case, via ap.sub/resume-ap.sub or the OOD app), so
+# it can be correlated back to the job for tasks like resuming it later.
+# Fall back to a random suffix when run outside Slurm.
+SUFFIX="${SLURM_JOB_ID:-$RANDOM$RANDOM}"
 CONDOR_DIR="$BASE_DIR/condor-$SUFFIX"
 
 # --- Install HTCondor --------------------------------------------------
