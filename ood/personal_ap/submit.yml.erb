@@ -1,0 +1,13 @@
+---
+batch_connect:
+  template: basic
+script:
+  native:
+    - "-p"
+    - "<%= context.partition %>"
+    - "-c"
+    - "<%= context.cpus %>"
+    - "--mem"
+    - "<%= context.memory %>G"
+    - "-t"
+    - "<%= context.time_limit %>"

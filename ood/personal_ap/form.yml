@@ -1,0 +1,53 @@
+---
+cluster: "*" # Glob: show a dropdown of every cluster configured on this OOD instance.
+form:
+  - partition
+  - cpus
+  - memory
+  - time_limit
+  - working_dir
+  - tarball_path
+  - base_dir
+
+attributes:
+  partition:
+    widget: text_field
+    label: "Slurm partition"
+    required: true
+  cpus:
+    widget: number_field
+    label: "CPUs"
+    value: 1
+    min: 1
+  memory:
+    widget: number_field
+    label: "Memory (GB)"
+    value: 2
+    min: 1
+  time_limit:
+    widget: text_field
+    label: "Time limit"
+    value: "4:00:00"
+    help: "Slurm time format, e.g. HH:MM:SS or D-HH:MM:SS. The AP runs only as long as this job does."
+  working_dir:
+    widget: text_field
+    label: "Existing AP working directory"
+    value: ""
+    help: >-
+      Leave blank to install a fresh AP. To resume a previously installed AP instead, set this
+      to its condor install dir (the CONDOR_DIR printed by a prior install).
+  tarball_path:
+    widget: text_field
+    label: "HTCondor tarball path"
+    value: ""
+    help: >-
+      Required when "Existing AP working directory" is left blank. Path to a condor.tar.gz
+      downloaded per the README's "Download HTCondor" steps. Ignored when resuming an
+      existing AP.
+  base_dir:
+    widget: text_field
+    label: "Base install directory"
+    value: ""
+    help: >-
+      Optional, only used for a fresh install. Defaults to install.sh's own default
+      (/scratch/$USER) if left blank. Ignored when resuming an existing AP.

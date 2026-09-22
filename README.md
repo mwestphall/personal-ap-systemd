@@ -246,3 +246,38 @@ $ sbatch -p <partition name> reume-ap.sub $SHARED_FS/<existing-ap-condor-dir>
 ```
 
 EPs launched via `ep/annex-ep.sub` will automatically reconnect to an AP resumed via `ap/resume-ap.sub`
+
+# Launch an AP via Open OnDemand
+
+[`ood/personal_ap`](./ood/personal_ap) is an Open OnDemand [Interactive App](https://osc.github.io/ood-documentation/latest/how-tos/app-development/interactive.html)
+that wraps copies of `ap/install.sh` and `ap/start.sh` (bundled directly under
+[`ood/personal_ap/template/`](./ood/personal_ap/template)), so an AP can be launched from the OOD
+dashboard instead of by hand-editing and `sbatch`-ing `ap.sub`/`resume-ap.sub`. Since the scripts
+it needs are bundled with it, only the `ood/personal_ap` directory itself needs to make it onto
+your OOD server — the rest of this repository doesn't need to be cloned onto the shared
+filesystem for the app to work. (Note: these are plain copies, not kept in sync with `ap/`.)
+
+## Enable the App
+
+1. Copy or symlink `ood/personal_ap` into OOD's dev apps location so it shows up on your dashboard:
+
+    ```
+    $ mkdir -p ~/ondemand/dev
+    $ cp -r ood/personal_ap ~/ondemand/dev/personal_ap
+    ```
+
+No further configuration is needed: `form.yml`'s `cluster: "*"` shows a dropdown of every cluster
+configured on your OOD instance. If you'd rather pin the app to a single cluster, replace `"*"`
+with that cluster's `clusters.d` config name.
+
+## Form Fields
+
+* **Partition / CPUs / Memory / Time limit**: generic Slurm request knobs, equivalent to `ap.sub`'s
+  `#SBATCH` directives. The AP runs only as long as this Slurm job does.
+* **Existing AP working directory**: left blank by default, which installs a fresh AP (equivalent
+  to `ap.sub`). Set it to an existing AP's condor install dir to resume it instead (equivalent to
+  `resume-ap.sub`) — the job fails fast if the given directory doesn't exist.
+* **HTCondor tarball path**: required only when the working directory is left blank (fresh
+  install); ignored when resuming.
+* **Base install directory**: optional, only used for a fresh install; defaults to `install.sh`'s
+  own default (`/scratch/$USER`) if left blank.
