@@ -76,6 +76,13 @@ cat >> 20-annex-pilot-instance <<EOF
 
 AP_SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
 
+# Make this EP's names unique by appending its Slurm job ID, so EPs sharing a
+# worker node don't collide in the AP's collector. UID_DOMAIN and the default
+# daemon names otherwise derive from the node's FULL_HOSTNAME alone.
+UID_DOMAIN = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
+STARTD_NAME = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
+MASTER_NAME = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
+
 STARTD_CRON_JOBLIST = \$(STARTD_CRON_JOBLIST) UPDATE_ANNEX_COLLECTOR
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_EXECUTABLE = ${SCRIPT_DIR}/update-annex-collector.sh
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_ARGS = \$(AP_SCHEDD_ADDRESS_FILE)
