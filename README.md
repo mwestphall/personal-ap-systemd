@@ -189,11 +189,11 @@ AP keeps running; check `personal-ap.debug` for a warning.
 
 The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
 
-Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition, EP tarball location, and AP location as appropriate:
+Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and the same base dir used for the AP:
 
 ```
 $ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub $BASE_DIR/current-ap/annex-default-annex.tar $BASE_DIR/current-ap
+$ sbatch -p <partition-name> annex-ep.sub $BASE_DIR
 ```
 
 ## Confirm that your Job Runs on the Annex
