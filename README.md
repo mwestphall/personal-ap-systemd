@@ -21,32 +21,6 @@ Before creating your HTCondor cluster, you must have the following:
 
 * `git` installed on your Slurm cluster's login node.
 
-# Download HTCondor
-
-To install an HTCondor Access Point on your Linux host as an unprivileged user, perform the following steps:
-
-* Select a location on your Slurm Cluster's shared filesystem to place your HTCondor configuration files.
-
-* Download the latest version of HTCondor, or a specific development version.
-
-## Shared Filesystem
-
-Regardless of installation method, you must download HTCondor to a location where it will be accessible to your
-Slurm worker nodes. This tutorial assumes a shared filesystem at `$SHARED_FS`. Set this variable as appropriate
-for your use-case.
-
-```
-$ export SHARED_FS=/path/to/shared/fs
-$ cd $SHARED_FS
-```
-
-## HTCondor
-
-No manual download is needed. On first install, `install.sh` downloads the HTCondor tarball matching
-your host's EL version (8, 9, or 10) to `$BASE_DIR/condor.tar.gz`. To use a different HTCondor version,
-place your own tarball at that path beforehand.
-
-
 # Download Slurm Scripts
 
 The Slurm scripts used to provision a cluster are available from [this repository](https://github.com/mwestphall/personal-ap-systemd).
@@ -56,20 +30,16 @@ Clone this repo via Git before proceeding.
 $ git clone https://github.com/mwestphall/personal-ap-systemd
 ```
 
-
-
 # Schedule an Access Point on your Slurm Cluster
 
 The provided [ap.sub](./ap/ap.sub) and [install.sh](./ap/install.sh) scripts launch a Slurm job that:
 
-1. Downloads (if needed) and unpacks the HTCondor tarball.
+1. Downloads (if needed) the HTCondor binaries.
 
 1. Configures HTCondor to run as an Access Point in single-user mode under your Unix account.
 
 1. Creates configuration that points HTCondor command line tools invoked from the login 
    node at your running AP job.
-
-**Note**: `ap.sub` creates a new AP if `$BASE_DIR/current-ap` does not exist, and otherwise resumes the AP it points to. See [Resume an Access Point](#resume-an-access-point).
 
 To launch an AP Slurm job:
 
@@ -85,8 +55,8 @@ To launch an AP Slurm job:
     ```
     $ tail -f personal-ap.debug
     ...
-    ==> To interact with this AP, source the condor env file at $SHARED_FS/condor-1234/condor.sh:
-        '. $SHARED_FS/condor-1234/condor.sh'
+    ==> To interact with this AP, source the condor env file at $SHARED_FS/current-ap/condor.sh:
+        '. $SHARED_FS/current-ap/condor.sh'
     ==> Running HTCondor AP in the foreground
     ```
   
@@ -95,7 +65,7 @@ To launch an AP Slurm job:
    at the AP:
 
     ```
-    $ . $SHARED_FS/condor-1234/condor.sh
+    $ . $SHARED_FS/current-ap/condor.sh
     ```
 
 # Confirm that your AP is Running
@@ -111,7 +81,7 @@ To launch an AP Slurm job:
     Total for all users: 0 jobs; 0 completed, 0 removed, 0 idle, 0 running, 0 held, 0 suspended
     ```
 
-1. Confirm that your AP's annex collector is running.
+1. Confirm that your AP's collector is running.
     ```
     $ condor_status -pool $(condor_config_val NETWORK_HOSTNAME):9618?sock=ap_collector -any
     MyType             TargetType         Name                                     
@@ -121,9 +91,34 @@ To launch an AP Slurm job:
     Submitter          None               you@hpc-worker100.slurm.cluster
     ```
 
+# Schedule an Execution Point on your Slurm Cluster
+
+Additional resources are required to to run jobs placed into your AP's queue. 
+An Execution Point (EP) runs multiple HTCondor jobs within the lifecycle 
+of a single Slurm job.
+
+## Schedule an Execution Point
+
+The provided [annex-ep.sub](./ep/annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
+
+Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and the same base dir used for the AP.
+
+```
+$ cd $SHARED_FS/personal-ap-systemd/ep
+$ sbatch -p <partition-name> annex-ep.sub $SHARED_FS
+```
+
+The provided `annex-ep.sub` script launches an EP in "annex mode", which allows it to connect directly back to your
+running AP. 
+ * In a non-annex HTCondor installation, a 3rd intermediary daemon is needed to broker connections between
+APs and EPs.
+
+
 # Submit your first HTCondor Job to your AP
 
-Your Access Point (AP) configured in the previous section manages your HTCondor job queue.
+Your Access Point (AP) configured in the previous section manages your HTCondor job queue, while the
+Execution Point (EP) runs any submitted workloads.
+
 Place a "Hello World" HTCondor job into your AP's job queue.
 
 ## Create a "Hello World" Job
@@ -153,7 +148,7 @@ EOF
 $ cat << EOF >> hello.sh
 #!/bin/bash
 echo "Hello, World!"
-echo "I am running on $(hostname)"
+echo "I am running on \$(hostname)"
 sleep 30
 EOF
 
@@ -162,43 +157,16 @@ $ chmod +x hello.sh
 
 ## Submit your HTCondor Job to your AP
 
-Submit a test job to your AP: Mark it to run on an annex (another Slurm worker within the cluster) 
-via `--annex-name`:
+Submit a test job to your AP. EPs launched via `annex-ep.sub` are labelled as `default-annex`. To
+schedule an HTCondor job that will run on these EPs, specify their annex name via `--annex-name`:
 
 ```
 $ htcondor job submit hello.sub --annex-name default-annex
 ```
 
-The AP creates an annex named `default-annex` automatically.
+## Confirm that your Job Runs on the EP
 
-# Schedule an Execution Point on your Slurm Cluster
-
-Additional resources are required to to run jobs placed into your AP's queue. 
-An Execution Point (EP) runs multiple HTCondor jobs within the lifecycle 
-of a single Slurm job.
-
-## Prepare an HTCondor Tarball for your Execution Point 
-
-The AP job automatically runs `htcondor annex create default-annex` on startup (or `htcondor annex add`
-if the annex already exists without a tarball), and leaves the EP tarball at
-`$BASE_DIR/current-ap/annex-default-annex.tar`. This tarball contains an HTCondor installation configured
-as an Execution Point that runs jobs from your existing Access Point's job queue. If this step fails, the
-AP keeps running; check `personal-ap.debug` for a warning.
-
-## Schedule an Execution Point
-
-The provided [annex-ep.sub](./annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
-
-Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and the same base dir used for the AP:
-
-```
-$ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub $BASE_DIR
-```
-
-## Confirm that your Job Runs on the Annex
-
-1. Confirm that your Annex EP has successfully connected to your AP, and that your job is running on the Annex:
+1. Confirm that your EP has successfully connected to your AP, and that your job is running on the EP:
 
     ```
     $ htcondor annex status default-annex
@@ -217,10 +185,12 @@ $ sbatch -p <partition-name> annex-ep.sub $BASE_DIR
     I am running on hpc-worker123
     ```
 
-# Resume an Access Point
+# Additional Options 
+
+## Resume an Access Point
 
 The AP configured by `ap.sub` will exit after 4 hours by default. To resume your AP after it exits,
-submit `ap.sub` again with the same base dir. It detects the existing AP at `$BASE_DIR/current-ap`
+submit `ap.sub` again with the same base dir. It detects the existing AP at symlink `$SHARED_FS/current-ap`
 and starts it without reinstalling:
 
 ```
@@ -229,3 +199,17 @@ $ sbatch -p <partition name> ap.sub $SHARED_FS
 ```
 
 EPs launched via `ep/annex-ep.sub` will automatically reconnect to a resumed AP.
+
+To launch a fresh AP, remove the `$SHARED_FS/current-ap` symlink before re-submitting the `ap.sub` job.
+
+
+# Add Worker Nodes
+
+To run larger workloads on your HTCondor cluster, you can schedule additional EPs onto your Slurm workers by re-running the `annex-ep.sub` script:
+
+```
+$ cd $SHARED_FS/personal-ap-systemd/ep
+$ sbatch -p <partition-name> annex-ep.sub $SHARED_FS
+```
+
+Each invocation of this script will create a new directory under $SHARED_FS, labelled after the EP's Slurm batch ID.
