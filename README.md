@@ -99,7 +99,7 @@ of a single Slurm job.
 
 ## Schedule an Execution Point
 
-The provided [annex-ep.sub](./ep/annex-ep.sub) contains a Slurm script that launches the EP tarball from the previous step.
+The provided [annex-ep.sub](./ep/annex-ep.sub) contains a Slurm script that auto-configures an EP to run the jobs scheduled in your AP.
 
 Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and the same base dir used for the AP.
 
@@ -108,8 +108,8 @@ $ cd $SHARED_FS/personal-ap-systemd/ep
 $ sbatch -p <partition-name> annex-ep.sub $SHARED_FS
 ```
 
-The provided `annex-ep.sub` script launches an EP in "annex mode", which allows it to connect directly back to your
-running AP. 
+The provided `annex-ep.sub` script reads your AP's configuration from the shared FS, then launches an "annex-mode" EP configured to automatically
+run jobs scheduled in that AP.
  * In a non-annex HTCondor installation, a 3rd intermediary daemon is needed to broker connections between
 APs and EPs.
 
@@ -203,7 +203,7 @@ EPs launched via `ep/annex-ep.sub` will automatically reconnect to a resumed AP.
 To launch a fresh AP, remove the `$SHARED_FS/current-ap` symlink before re-submitting the `ap.sub` job.
 
 
-# Add Worker Nodes
+## Add Worker Nodes
 
 To run larger workloads on your HTCondor cluster, you can schedule additional EPs onto your Slurm workers by re-running the `annex-ep.sub` script:
 
