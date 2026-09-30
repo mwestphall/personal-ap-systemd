@@ -40,25 +40,11 @@ $ export SHARED_FS=/path/to/shared/fs
 $ cd $SHARED_FS
 ```
 
-## Latest HTCondor 
+## HTCondor
 
-HTCondor is available for download via `get.htcondor.org`:
-
-```
-$ curl -fsSL https://get.htcondor.org | /bin/bash -s -- -download
-```
-
-This will download the latest release of HTCondor as a tarball file `condor.tar.gz` in your working directory.
-
-## Specific HTCondor 
-
-To install a specific HTCondor version, `curl` a distro-specific tarball from `https://htcss-downloads.chtc.wisc.edu/tarball`, eg.
-(for Alma/Rocky Linux 9):
-
-```
-$ curl -o condor.tar.gz -L \
-  https://htcss-downloads.chtc.wisc.edu/tarball/25.x/25.15.15/snapshot/condor-25.15.15-x86_64_AlmaLinux9-stripped.tar.gz
-```
+No manual download is needed. On first install, `install.sh` downloads the HTCondor tarball matching
+your host's EL version (8, 9, or 10) to `$BASE_DIR/condor.tar.gz`. To use a different HTCondor version,
+place your own tarball at that path beforehand.
 
 
 # Download Slurm Scripts
@@ -76,23 +62,22 @@ $ git clone https://github.com/mwestphall/personal-ap-systemd
 
 The provided [ap.sub](./ap/ap.sub) and [install.sh](./ap/install.sh) scripts launch a Slurm job that:
 
-1. Unpacks the HTCondor tarball from the previous step.
+1. Downloads (if needed) and unpacks the HTCondor tarball.
 
 1. Configures HTCondor to run as an Access Point in single-user mode under your Unix account.
 
 1. Creates configuration that points HTCondor command line tools invoked from the login 
    node at your running AP job.
 
-**Note**: `ap.sub` creates a new AP from scratch. To resume a previously scheduled AP, see [Resume an Access Point](#resume-an-access-point).
+**Note**: `ap.sub` creates a new AP if `$BASE_DIR/current-ap` does not exist, and otherwise resumes the AP it points to. See [Resume an Access Point](#resume-an-access-point).
 
 To launch an AP Slurm job:
 
-1. Submit `ap.sub` via `sbatch`, setting your desired Slurm partition, condor tarball location, and shared FS working dir 
-   as appropriate:
+1. Submit `ap.sub` via `sbatch`, setting your desired Slurm partition and shared FS base dir as appropriate:
 
     ```
     $ cd $SHARED_FS/personal-ap-systemd/ap
-    $ sbatch -p <partition name> ap.sub $SHARED_FS/condor.tar.gz $SHARED_FS
+    $ sbatch -p <partition name> ap.sub $SHARED_FS
     ```
 
 1. Tail the created job's log to confirm that the AP starts successfully.
@@ -238,11 +223,12 @@ $ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar> <path/to/ap/config
 # Resume an Access Point
 
 The AP configured by `ap.sub` will exit after 4 hours by default. To resume your AP after it exits,
-launch a new job out of the existing AP directory with `resume-ap.sub`:
+submit `ap.sub` again with the same base dir. It detects the existing AP at `$BASE_DIR/current-ap`
+and starts it without reinstalling:
 
 ```
 $ cd $SHARED_FS/personal-ap-systemd/ap
-$ sbatch -p <partition name> reume-ap.sub $SHARED_FS/<existing-ap-condor-dir>
+$ sbatch -p <partition name> ap.sub $SHARED_FS
 ```
 
-EPs launched via `ep/annex-ep.sub` will automatically reconnect to an AP resumed via `ap/resume-ap.sub`
+EPs launched via `ep/annex-ep.sub` will automatically reconnect to a resumed AP.

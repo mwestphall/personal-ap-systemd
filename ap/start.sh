@@ -2,7 +2,7 @@
 #
 # start.sh - Start a personal HTCondor Access Point (AP) from an existing,
 # already-configured condor dir, and run it in the foreground (intended
-# for running the AP as a Slurm job). See install.sh, ap.sub, resume-ap.sub.
+# for running the AP as a Slurm job). See install.sh, ap.sub.
 
 set -euo pipefail
 
