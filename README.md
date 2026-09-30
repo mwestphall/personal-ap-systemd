@@ -166,10 +166,10 @@ Submit a test job to your AP: Mark it to run on an annex (another Slurm worker w
 via `--annex-name`:
 
 ```
-$ htcondor job submit hello.sub --annex-name <annex name>
+$ htcondor job submit hello.sub --annex-name default-annex
 ```
 
-`<annex name>` should be a unique string describing the purpose of your annex.
+The AP creates an annex named `default-annex` automatically.
 
 # Schedule an Execution Point on your Slurm Cluster
 
@@ -179,14 +179,11 @@ of a single Slurm job.
 
 ## Prepare an HTCondor Tarball for your Execution Point 
 
-Create an EP tarball via the `htcondor annex create` tool. This tarball contains an HTCondor installation configured
-as an Execution Point that runs jobs from your existing Access Point's job queue.
-
-```
-$ htcondor annex create test-annex
-
-Please copy the file annex-test-annex.tar to the HPC system
-```
+The AP job automatically runs `htcondor annex create default-annex` on startup (or `htcondor annex add`
+if the annex already exists without a tarball), and leaves the EP tarball at
+`$BASE_DIR/current-ap/annex-default-annex.tar`. This tarball contains an HTCondor installation configured
+as an Execution Point that runs jobs from your existing Access Point's job queue. If this step fails, the
+AP keeps running; check `personal-ap.debug` for a warning.
 
 ## Schedule an Execution Point
 
@@ -196,7 +193,7 @@ Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition, EP tar
 
 ```
 $ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar> <path/to/ap/config-dir>
+$ sbatch -p <partition-name> annex-ep.sub $BASE_DIR/current-ap/annex-default-annex.tar $BASE_DIR/current-ap
 ```
 
 ## Confirm that your Job Runs on the Annex
@@ -204,8 +201,8 @@ $ sbatch -p <partition-name> annex-ep.sub <path/to/annex.tar> <path/to/ap/config
 1. Confirm that your Annex EP has successfully connected to your AP, and that your job is running on the Annex:
 
     ```
-    $ htcondor annex status test-annex
-    Annex 'test-annex' is established.
+    $ htcondor annex status default-annex
+    Annex 'default-annex' is established.
     Its oldest established request is about 0.00 hours old and will retire in 3.91 hours.
     There are 1 nodes in the established annex.
     There are 2 CPUs in the established annex, of which 1 are busy.
