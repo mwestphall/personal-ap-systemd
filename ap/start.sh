@@ -134,7 +134,7 @@ prepare_annex() {
 
     echo "==> Running 'htcondor annex $verb $ANNEX_NAME'"
     # The CLI writes annex-<name>.tar into its working directory.
-    (cd "$CONDOR_DIR" && htcondor annex "$verb" "$ANNEX_NAME") || return 1
+    (cd "$CONDOR_DIR" && htcondor annex "$verb" --idle-time 3600 "$ANNEX_NAME") || return 1
 
     if [ ! -s "$ANNEX_TARBALL" ]; then
         echo "    expected tarball $ANNEX_TARBALL was not produced"
