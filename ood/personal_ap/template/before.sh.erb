@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# Pick a free port for the AP viewer (see viewer.py) to listen on.
+port=$(find_port "${host:-$(hostname)}" 5000 5999)
+export port

@@ -16,15 +16,19 @@ CURRENT_AP="$BASE_DIR/current-ap"
 
 if [ -d "$CURRENT_AP" ]; then
     echo "==> Resuming existing AP at $CURRENT_AP"
-    exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
+else
+    echo "==> Installing a fresh AP"
+    if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" --base-dir "$BASE_DIR")"; then
+        echo "$INSTALL_OUTPUT"
+        echo "error: install.sh failed" >&2
+        exit 1
+    fi
+    echo "$INSTALL_OUTPUT"
 fi
 
-echo "==> Installing a fresh AP"
-if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" --base-dir "$BASE_DIR")"; then
-    echo "$INSTALL_OUTPUT"
-    echo "error: install.sh failed" >&2
-    exit 1
-fi
-echo "$INSTALL_OUTPUT"
+# Serve the AP viewer in the background on the port picked in before.sh.erb;
+# it exits along with this job.
+echo "==> Starting AP viewer on port $port"
+python3 "$AP_DIR/viewer.py" --base-dir "$BASE_DIR" --condor-dir "$CURRENT_AP" --port "$port" &
 
 exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
