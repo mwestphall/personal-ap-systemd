@@ -1,0 +1,13 @@
+---
+cluster: "*" # Glob: show a dropdown of every cluster configured on this OOD instance.
+form:
+  - base_dir
+
+attributes:
+  base_dir:
+    widget: text_field
+    label: "Base install directory"
+    value: ""
+    help: >-
+      The base directory the AP was installed into. The EP attaches to the AP at
+      <base dir>/current-ap. Defaults to /scratch/$USER if left blank.
