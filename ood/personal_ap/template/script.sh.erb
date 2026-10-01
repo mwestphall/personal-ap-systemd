@@ -10,41 +10,21 @@ set -euo pipefail
 
 AP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-WORKING_DIR="<%= context.working_dir %>"
-TARBALL_PATH="<%= context.tarball_path %>"
 BASE_DIR="<%= context.base_dir %>"
+BASE_DIR="${BASE_DIR:-/scratch/$USER}" # must match install.sh's default base dir
+CURRENT_AP="$BASE_DIR/current-ap"
 
-if [ -n "$WORKING_DIR" ]; then
-    echo "==> Resuming existing AP at $WORKING_DIR"
-    if [ ! -d "$WORKING_DIR" ]; then
-        echo "error: working directory not found at $WORKING_DIR" >&2
-        exit 1
-    fi
-    CONDOR_DIR="$WORKING_DIR"
-else
-    echo "==> Installing a fresh AP"
-    if [ -z "$TARBALL_PATH" ]; then
-        echo "error: tarball path is required when working directory is blank" >&2
-        exit 1
-    fi
-
-    INSTALL_ARGS=(--tarball-path "$TARBALL_PATH")
-    if [ -n "$BASE_DIR" ]; then
-        INSTALL_ARGS=(--base-dir "$BASE_DIR" --tarball-path "$TARBALL_PATH")
-    fi
-
-    if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" "${INSTALL_ARGS[@]}")"; then
-        echo "$INSTALL_OUTPUT"
-        echo "error: install.sh failed" >&2
-        exit 1
-    fi
-    echo "$INSTALL_OUTPUT"
-
-    CONDOR_DIR="$(echo "$INSTALL_OUTPUT" | sed -n 's/^CONDOR_DIR=//p' | tail -1)"
-    if [ -z "$CONDOR_DIR" ]; then
-        echo "error: install.sh did not report a CONDOR_DIR" >&2
-        exit 1
-    fi
+if [ -d "$CURRENT_AP" ]; then
+    echo "==> Resuming existing AP at $CURRENT_AP"
+    exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
 fi
 
-exec "$AP_DIR/start.sh" --condor-dir "$CONDOR_DIR"
+echo "==> Installing a fresh AP"
+if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" --base-dir "$BASE_DIR")"; then
+    echo "$INSTALL_OUTPUT"
+    echo "error: install.sh failed" >&2
+    exit 1
+fi
+echo "$INSTALL_OUTPUT"
+
+exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
