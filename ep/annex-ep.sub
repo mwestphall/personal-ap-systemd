@@ -12,13 +12,31 @@
 # sibling repo files, falling back to BASH_SOURCE for direct invocation.
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
-SOURCE="${1:?Usage: sbatch annex-ep.sub <path-to-annex-tarball> <ap-local-condor-dir>}"   # full path to the tarball from `htcondor annex create`
-AP_DIR="${2:?Usage: sbatch annex-ep.sub <path-to-annex-tarball> <ap-local-condor-dir>}"   # the AP's condor install dir (contains local/, condor.sh, etc.)
+BASE_DIR="${1:?Usage: sbatch annex-ep.sub <base-dir>}"   # the base dir the AP was installed into (see ap/ap.sub)
 
-if [ ! -f "$SOURCE" ]; then
-  echo "ERROR: Specified source tarball $SOURCE does not exist"
+# Resolve the well-known symlink now so this EP stays tied to this AP install
+# even if current-ap is later repointed by a fresh install.
+AP_DIR="$(readlink -f "$BASE_DIR/current-ap")"           # the AP's condor install dir (contains local/, condor.sh, etc.)
+SOURCE="$AP_DIR/annex-default-annex.tar"                 # EP tarball written by the AP's start.sh
+
+if [ ! -d "$AP_DIR" ]; then
+  echo "ERROR: No AP found at $BASE_DIR/current-ap; submit ap/ap.sub first"
   exit 1
 fi
+
+if [ ! -f "$SOURCE" ]; then
+  echo "ERROR: Annex tarball $SOURCE does not exist; check the AP's log for annex creation errors"
+  exit 1
+fi
+
+# Unpacking multiple EPs into the same directory conflicts, so give each EP
+# job its own working directory.
+EP_DIR="$BASE_DIR/ep-${SLURM_JOB_ID:?SLURM_JOB_ID is not set; run this script via sbatch}"
+echo "Creating EP working directory $EP_DIR"
+mkdir -p "$EP_DIR" && cd "$EP_DIR" || {
+  echo "ERROR: Failed to create or enter $EP_DIR"
+  exit 1
+}
 
 echo "Unpacking $SOURCE"
 tar -xvf "$SOURCE" --strip-components=1
@@ -57,6 +75,13 @@ echo "Configuring dynamic collector and schedd-name lookup"
 cat >> 20-annex-pilot-instance <<EOF
 
 AP_SCHEDD_ADDRESS_FILE = ${AP_DIR}/local/spool/.schedd_address
+
+# Make this EP's names unique by appending its Slurm job ID, so EPs sharing a
+# worker node don't collide in the AP's collector. UID_DOMAIN and the default
+# daemon names otherwise derive from the node's FULL_HOSTNAME alone.
+UID_DOMAIN = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
+STARTD_NAME = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
+MASTER_NAME = \$(FULL_HOSTNAME)-${SLURM_JOB_ID}
 
 STARTD_CRON_JOBLIST = \$(STARTD_CRON_JOBLIST) UPDATE_ANNEX_COLLECTOR
 STARTD_CRON_UPDATE_ANNEX_COLLECTOR_EXECUTABLE = ${SCRIPT_DIR}/update-annex-collector.sh

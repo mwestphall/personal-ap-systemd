@@ -2,7 +2,7 @@
 #
 # start.sh - Start a personal HTCondor Access Point (AP) from an existing,
 # already-configured condor dir, and run it in the foreground (intended
-# for running the AP as a Slurm job). See install.sh, ap.sub, resume-ap.sub.
+# for running the AP as a Slurm job). See install.sh, ap.sub.
 
 set -euo pipefail
 
@@ -90,6 +90,62 @@ TOKEN_NAME="testing"
 IDENTITY="$(whoami)@$(condor_config_val UID_DOMAIN)"
 condor_token_create -identity "$IDENTITY" -authz READ -authz WRITE -token "$TOKEN_NAME"
 echo "    Generated sample IDToken for $IDENTITY at $CONDOR_DIR/local/tokens.d/$TOKEN_NAME"
+
+# --- Prepare the default annex ------------------------------------------
+# Build the EP tarball for ep/annex-ep.sub at a well-known path (reachable
+# via $BASE_DIR/current-ap), authenticating to the AP with the IDToken above.
+# Failures here are logged but non-fatal: the AP keeps running regardless.
+ANNEX_NAME="default-annex"
+ANNEX_TARBALL="$CONDOR_DIR/annex-$ANNEX_NAME.tar"
+
+export _condor_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS
+
+# ASSUMPTION: an annex "exists in the schedd" if `htcondor annex status`
+# reports it (vs. "Found no ... annexes named"). Adjust here if the
+# htcondor CLI's behavior differs.
+annex_exists_in_schedd() {
+    local out
+    out="$(htcondor annex status "$ANNEX_NAME" 2>&1)" || return 1
+    [[ "$out" != *"Found no"* ]]
+}
+
+prepare_annex() {
+    echo "==> Waiting for the schedd to accept queries"
+    local tries=0
+    until condor_q >/dev/null 2>&1; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 30 ]; then
+            echo "    schedd not reachable after 30s"
+            return 1
+        fi
+        sleep 1
+    done
+
+    local verb
+    if annex_exists_in_schedd; then
+        if [ -s "$ANNEX_TARBALL" ]; then
+            echo "==> Annex '$ANNEX_NAME' already exists with tarball at $ANNEX_TARBALL; nothing to do"
+            return 0
+        fi
+        verb=add
+    else
+        verb=create
+    fi
+
+    echo "==> Running 'htcondor annex $verb $ANNEX_NAME'"
+    # The CLI writes annex-<name>.tar into its working directory.
+    (cd "$CONDOR_DIR" && htcondor annex "$verb" --idle-time 3600 "$ANNEX_NAME") || return 1
+
+    if [ ! -s "$ANNEX_TARBALL" ]; then
+        echo "    expected tarball $ANNEX_TARBALL was not produced"
+        return 1
+    fi
+    echo "==> Annex tarball at $ANNEX_TARBALL"
+}
+
+if ! prepare_annex; then
+    echo "WARNING: could not prepare annex '$ANNEX_NAME'; the AP is still running"
+fi
 
 echo "==> To interact with this AP from the login node, source the condor env file at $CONDOR_DIR/condor.sh:"
 echo "    '. $CONDOR_DIR/condor.sh'"
