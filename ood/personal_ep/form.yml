@@ -11,6 +11,7 @@ attributes:
   slurm_partition:
     widget: text_field
     label: "Slurm partition"
+    value: "shared"
     required: true
   cpus:
     widget: number_field
