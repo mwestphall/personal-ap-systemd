@@ -7,13 +7,13 @@
 #SBATCH --output=personal-ap.debug
 #SBATCH --error=personal-ap.debug
 
-# Starts a new AP, or resumes the existing one if $BASE_DIR/current-ap exists.
+# Starts a new AP, or resumes the existing one if ~/.cache/current-ap exists.
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 INSTALL_SH="$REPO_DIR/install.sh"
 START_SH="$REPO_DIR/start.sh"
 BASE_DIR="${1:-/scratch/$USER}"                     # must match install.sh's default base dir
-CURRENT_AP="$BASE_DIR/current-ap"
+CURRENT_AP="$HOME/.cache/current-ap"
 
 if [ ! -x "$START_SH" ]; then
   echo "ERROR: $START_SH not found or not executable"

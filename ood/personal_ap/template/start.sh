@@ -93,7 +93,7 @@ echo "    Generated sample IDToken for $IDENTITY at $CONDOR_DIR/local/tokens.d/$
 
 # --- Prepare the default annex ------------------------------------------
 # Build the EP tarball for ep/annex-ep.sub at a well-known path (reachable
-# via $BASE_DIR/current-ap), authenticating to the AP with the IDToken above.
+# via ~/.cache/current-ap), authenticating to the AP with the IDToken above.
 # Failures here are logged but non-fatal: the AP keeps running regardless.
 ANNEX_NAME="default-annex"
 ANNEX_TARBALL="$CONDOR_DIR/annex-$ANNEX_NAME.tar"

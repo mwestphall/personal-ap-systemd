@@ -9,5 +9,6 @@ attributes:
     label: "Base install directory"
     value: ""
     help: >-
-      The base directory the AP was installed into. The EP attaches to the AP at
-      <base dir>/current-ap. Defaults to /scratch/$USER if left blank.
+      Directory to create this EP's working directory in, on storage shared with the AP's
+      node. The EP attaches to the AP at ~/.cache/current-ap. Defaults to /scratch/$USER if
+      left blank.

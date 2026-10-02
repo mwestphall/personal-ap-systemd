@@ -32,6 +32,7 @@ attributes:
     label: "Base install directory"
     value: ""
     help: >-
-      Must be on storage shared with the login node. If <base dir>/current-ap exists, that
-      AP is resumed; otherwise a fresh AP is installed here (HTCondor is downloaded
-      automatically) and current-ap is pointed at it. Defaults to /scratch/$USER if left blank.
+      Must be on storage shared with the login node. If ~/.cache/current-ap exists, that
+      AP is resumed and this is ignored; otherwise a fresh AP is installed here (HTCondor is
+      downloaded automatically) and ~/.cache/current-ap is pointed at it. Defaults to
+      /scratch/$USER if left blank.

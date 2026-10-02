@@ -10,7 +10,7 @@ set -euo pipefail
 EP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BASE_DIR="<%= context.base_dir %>"
-BASE_DIR="${BASE_DIR:-/scratch/$USER}" # must match the AP app's base dir
+BASE_DIR="${BASE_DIR:-/scratch/$USER}" # where this EP's working dir goes
 
 # annex-ep.sub locates update-annex-collector.sh via SLURM_SUBMIT_DIR.
 export SLURM_SUBMIT_DIR="$EP_SCRIPT_DIR"

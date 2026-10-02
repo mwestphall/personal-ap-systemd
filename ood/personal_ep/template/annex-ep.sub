@@ -12,15 +12,15 @@
 # sibling repo files, falling back to BASH_SOURCE for direct invocation.
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
-BASE_DIR="${1:?Usage: sbatch annex-ep.sub <base-dir>}"   # the base dir the AP was installed into (see ap/ap.sub)
+BASE_DIR="${1:?Usage: sbatch annex-ep.sub <base-dir>}"   # base dir to create this EP's working dir in
 
 # Resolve the well-known symlink now so this EP stays tied to this AP install
 # even if current-ap is later repointed by a fresh install.
-AP_DIR="$(readlink -f "$BASE_DIR/current-ap")"           # the AP's condor install dir (contains local/, condor.sh, etc.)
+AP_DIR="$(readlink -f "$HOME/.cache/current-ap")"       # the AP's condor install dir (contains local/, condor.sh, etc.)
 SOURCE="$AP_DIR/annex-default-annex.tar"                 # EP tarball written by the AP's start.sh
 
 if [ ! -d "$AP_DIR" ]; then
-  echo "ERROR: No AP found at $BASE_DIR/current-ap; submit ap/ap.sub first"
+  echo "ERROR: No AP found at ~/.cache/current-ap; submit ap/ap.sub first"
   exit 1
 fi
 

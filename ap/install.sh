@@ -21,7 +21,7 @@ Usage: $(basename "${BASH_SOURCE[0]}") [OPTIONS]
 Install a personal HTCondor Access Point (AP) from the HTCondor tarball
 at <base-dir>/condor.tar.gz, first downloading the tarball matching this
 host's EL version (8, 9, or 10) if it does not exist. Leaves a symlink
-to the install at <base-dir>/current-ap and prints the resulting install
+to the install at ~/.cache/current-ap and prints the resulting install
 directory as "CONDOR_DIR=<path>" as its last line of output; see
 start.sh to actually run the installed AP.
 
@@ -136,7 +136,8 @@ SCHEDD.ALLOW_DAEMON = \$(ALLOW_DAEMON), $(whoami)@condor-$SUFFIX
 EOF
 
 # Leave a well-known symlink so later jobs can find and resume this AP.
-ln -sfn "$CONDOR_DIR" "$BASE_DIR/current-ap"
+mkdir -p "$HOME/.cache"
+ln -sfn "$CONDOR_DIR" "$HOME/.cache/current-ap"
 
 echo "==> Install complete"
 echo "CONDOR_DIR=$CONDOR_DIR"

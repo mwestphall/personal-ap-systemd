@@ -11,20 +11,37 @@ set -euo pipefail
 AP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BASE_DIR="<%= context.base_dir %>"
-BASE_DIR="${BASE_DIR:-/scratch/$USER}" # must match install.sh's default base dir
-CURRENT_AP="$BASE_DIR/current-ap"
+BASE_DIR="${BASE_DIR:-/scratch/$USER}" # only used for a fresh install
+CURRENT_AP="$HOME/.cache/current-ap"
 
 if [ -d "$CURRENT_AP" ]; then
     echo "==> Resuming existing AP at $CURRENT_AP"
-    exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
-fi
-
-echo "==> Installing a fresh AP"
-if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" --base-dir "$BASE_DIR")"; then
+else
+    echo "==> Installing a fresh AP"
+    if ! INSTALL_OUTPUT="$("$AP_DIR/install.sh" --base-dir "$BASE_DIR")"; then
+        echo "$INSTALL_OUTPUT"
+        echo "error: install.sh failed" >&2
+        exit 1
+    fi
     echo "$INSTALL_OUTPUT"
-    echo "error: install.sh failed" >&2
-    exit 1
 fi
-echo "$INSTALL_OUTPUT"
 
-exec "$AP_DIR/start.sh" --condor-dir "$CURRENT_AP"
+# Periodically write the file that view.html.erb reads, into the AP's shared
+# dir. Runs in the background alongside the AP, and is cleaned up with the job.
+CONDOR_DIR="$(readlink -f "$CURRENT_AP")"
+VIEW_FILE="$CONDOR_DIR/ood-view.json"
+(
+    # shellcheck disable=SC1091
+    . "$CONDOR_DIR/condor.sh"
+    export _condor_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS
+    while sleep 30; do
+        # One EP per distinct STARTD_NAME suffix (slots are named slotN@<EP>).
+        if EPS="$(condor_status -pool localhost:9618?sock=ap_collector -startd -af Name 2>/dev/null)"; then
+            NUM_EPS="$(echo "$EPS" | sed -n 's/^[^@]*@//p' | sort -u | wc -l)"
+            printf '{"num_eps": %s, "updated": "%s"}\n' "$NUM_EPS" "$(date '+%F %T')" > "$VIEW_FILE.tmp" \
+                && mv "$VIEW_FILE.tmp" "$VIEW_FILE"
+        fi
+    done
+) &
+
+exec "$AP_DIR/start.sh" --condor-dir "$CONDOR_DIR"
