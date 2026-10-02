@@ -11,6 +11,7 @@
 
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT=9618
 MAX_REQUEUES="${AP_MAX_REQUEUES:-5}"
 EX_REQUEUED=75
@@ -40,7 +41,7 @@ listeners() {
     ss -H -ltnp "sport = :$PORT" 2>/dev/null
 }
 
-# Requeue this job with this node excluded, then exit.
+# Requeue this job with this node excluded (via a helper job), then exit.
 requeue_elsewhere() {
     echo "==> $1"
     if [ -z "${SLURM_JOB_ID:-}" ]; then
@@ -60,20 +61,30 @@ requeue_elsewhere() {
     [ "$excluded" = "(null)" ] && excluded=""
     excluded="${excluded:+$excluded,}$node"
 
-    # Slurm signals this job once it is requeued; keep going until we have
-    # excluded this node and released the job.
-    trap '' TERM HUP
+    # ExcNodeList can only be edited while the job is pending, which doesn't
+    # happen until this run has been torn down (taking this script with it).
+    # So requeue the job held, and have a short helper job edit and release it.
+    local helper_args=(--parsable --begin=now+20 --time=10 --cpus-per-task=1 --mem=100M
+                       --job-name=ap-requeue-fix
+                       --output="${SLURM_SUBMIT_DIR:-$HOME}/ap-requeue-$SLURM_JOB_ID.log"
+                       --open-mode=append)
+    [ -n "${SLURM_JOB_PARTITION:-}" ] && helper_args+=(-p "$SLURM_JOB_PARTITION")
+    [ -n "${SLURM_JOB_ACCOUNT:-}" ] && helper_args+=(-A "$SLURM_JOB_ACCOUNT")
 
     echo "==> Requeuing job $SLURM_JOB_ID, excluding node(s) $excluded"
-    # Hold the job while editing it: ExcNodeList can only be changed while pending.
+    local helper
+    if ! helper="$(sbatch "${helper_args[@]}" "$SCRIPT_DIR/release-requeued-job.sh" "$SLURM_JOB_ID" "$excluded")"; then
+        echo "WARNING: could not submit a helper job; requeuing without excluding $excluded" >&2
+        scontrol requeue "$SLURM_JOB_ID" || { echo "error: scontrol requeue failed (is requeue enabled?)" >&2; exit 1; }
+        exit "$EX_REQUEUED"
+    fi
+    echo "==> Submitted helper job $helper to exclude the node and release the requeued job"
+
     if ! scontrol requeuehold "$SLURM_JOB_ID"; then
         echo "error: scontrol requeuehold failed (is requeue enabled?)" >&2
+        scancel "$helper"
         exit 1
     fi
-    if ! scontrol update JobId="$SLURM_JOB_ID" ExcNodeList="$excluded"; then
-        echo "WARNING: could not exclude $excluded; the job may land here again" >&2
-    fi
-    scontrol release "$SLURM_JOB_ID"
     exit "$EX_REQUEUED"
 }
 

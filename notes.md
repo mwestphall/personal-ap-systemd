@@ -39,14 +39,19 @@ explicitly:
 Only one AP can listen on port 9618 per node, and the firewall rules out other ports, so two APs (from any user) landing
 on the same node collide. `check-port.sh` handles this:
 
-* Before installing or starting anything, it checks whether 9618 is already listening on the node. If so, it excludes
-  this node from the job (`scontrol requeuehold`, `scontrol update ... ExcNodeList=...`, `scontrol release`) and requeues
-  the job, which keeps its job ID. It gives up after `AP_MAX_REQUEUES` (default 5) requeues.
+* Before installing or starting anything, it checks whether 9618 is already listening on the node. If so, it requeues the
+  job (which keeps its job ID) with this node excluded. It gives up after `AP_MAX_REQUEUES` (default 5) requeues.
+* `ExcNodeList` can only be edited while a job is pending, which doesn't happen until the running job is torn down, so
+  the job can't finish the edit itself. Instead it submits `release-requeued-job.sh` as a short helper job
+  (`sbatch --begin=now+20`), then runs
+  `scontrol requeuehold`. The helper waits for the job to become pending, runs `scontrol update ... ExcNodeList=...`,
+  and `scontrol release`s it. It logs to `ap-requeue-<job id>.log` in the submit directory. If the helper can't be
+  submitted, the job is requeued with plain `scontrol requeue`, without the exclusion.
 * `start.sh` runs it again with `--started-by <condor_master pid>` after starting the AP, to catch two APs racing for the
   port: if the listener is not a child of this AP's master, the master is killed and the job requeued.
 * An install from an earlier attempt of the same job (`condor-<job id>`) is resumed instead of reinstalled.
 
-Requeueing requires the cluster to allow `scontrol requeue` and for users to edit their pending jobs.
+Requeueing requires the cluster to allow `scontrol requeue`, `sbatch` from compute nodes, and for users to edit their pending jobs.
 
 ## Force IDToken Auth
 
