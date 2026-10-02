@@ -1,3 +1,7 @@
+<%
+  # Offer to reuse the existing AP only if there is one to reuse.
+  existing_ap = File.symlink?(File.join(Dir.home, ".cache", "current-ap"))
+%>
 ---
 cluster: "*" # Glob: show a dropdown of every cluster configured on this OOD instance.
 form:
@@ -5,6 +9,9 @@ form:
   - cpus
   - memory
   - time_limit
+<% if existing_ap %>
+  - reuse_ap
+<% end %>
   - base_dir
 
 attributes:
@@ -27,12 +34,22 @@ attributes:
     label: "Time limit"
     value: "4:00:00"
     help: "Slurm time format, e.g. HH:MM:SS or D-HH:MM:SS. The AP runs only as long as this job does."
+<% if existing_ap %>
+  reuse_ap:
+    widget: check_box
+    label: "Reuse existing AP"
+    value: "1"
+    checked_value: "1"
+    unchecked_value: "0"
+    help: >-
+      Resume the AP at ~/.cache/current-ap. Uncheck to install a fresh AP instead, which
+      replaces it.
+    data-hide-base-dir-when-checked: true
+<% end %>
   base_dir:
     widget: text_field
     label: "Base install directory"
     value: ""
     help: >-
-      Must be on storage shared with the login node. If ~/.cache/current-ap exists, that
-      AP is resumed and this is ignored; otherwise a fresh AP is installed here (HTCondor is
-      downloaded automatically) and ~/.cache/current-ap is pointed at it. Defaults to
-      /scratch/$USER if left blank.
+      Where to install a fresh AP (HTCondor is downloaded automatically), on storage shared
+      with the login node. Defaults to /scratch/$USER if left blank.
