@@ -1,9 +1,32 @@
 ---
 cluster: "*" # Glob: show a dropdown of every cluster configured on this OOD instance.
 form:
+  - slurm_partition
+  - cpus
+  - memory
+  - time_limit
   - base_dir
 
 attributes:
+  slurm_partition:
+    widget: text_field
+    label: "Slurm partition"
+    required: true
+  cpus:
+    widget: number_field
+    label: "CPUs"
+    value: 2
+    min: 1
+  memory:
+    widget: number_field
+    label: "Memory (GB)"
+    value: 4
+    min: 1
+  time_limit:
+    widget: text_field
+    label: "Time limit"
+    value: "4:00:00"
+    help: "Slurm time format, e.g. HH:MM:SS or D-HH:MM:SS. The EP runs only as long as this job does."
   base_dir:
     widget: text_field
     label: "Base install directory"

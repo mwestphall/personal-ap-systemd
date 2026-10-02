@@ -3,9 +3,11 @@ batch_connect:
   template: basic
 script:
   native:
+    - "-p"
+    - "<%= slurm_partition %>"
     - "-c"
-    - "2"
+    - "<%= cpus %>"
     - "--mem"
-    - "4G"
+    - "<%= memory %>G"
     - "-t"
-    - "4:00:00"
+    - "<%= time_limit %>"
