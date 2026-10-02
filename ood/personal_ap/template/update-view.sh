@@ -13,7 +13,7 @@ usage() {
 Usage: $(basename "${BASH_SOURCE[0]}") --condor-dir <path>
 
 Every ${INTERVAL}s, write <path>/ood-view.json with the number of EPs
-currently attached to the AP, the AP's running/held/idle job counts, and
+currently attached to the AP, the AP's running/held/idle/completed job counts, and
 the time of the update.
 
 Options:
@@ -74,7 +74,13 @@ while sleep "$INTERVAL"; do
     RUNNING="$(printf '%s\n' "$JOBS" | grep -c '^2$')"
     HELD="$(printf '%s\n' "$JOBS" | grep -c '^5$')"
 
-    printf '{"num_eps": %s, "running": %s, "held": %s, "idle": %s, "updated": "%s"}\n' \
-        "$NUM_EPS" "$RUNNING" "$HELD" "$IDLE" "$(date '+%F %T')" > "$VIEW_FILE.tmp" \
+    # Completed jobs have left the queue; count them from the history (4 = completed).
+    if ! HISTORY="$(condor_history -af JobStatus 2>/dev/null)"; then
+        continue
+    fi
+    COMPLETED="$(printf '%s\n' "$HISTORY" | grep -c '^4$')"
+
+    printf '{"num_eps": %s, "running": %s, "held": %s, "idle": %s, "completed": %s, "updated": "%s"}\n' \
+        "$NUM_EPS" "$RUNNING" "$HELD" "$IDLE" "$COMPLETED" "$(date '+%F %T')" > "$VIEW_FILE.tmp" \
         && mv "$VIEW_FILE.tmp" "$VIEW_FILE"
 done

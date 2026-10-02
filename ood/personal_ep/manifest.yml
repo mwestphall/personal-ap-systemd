@@ -5,4 +5,7 @@ subcategory: Servers
 role: batch_connect
 description: |
   Launch a personal HTCondor Execution Point (EP) as a Slurm job, attached to the AP launched by the
-  Personal HTCondor AP app. A thin wrapper around ep/annex-ep.sub; see the repository's README.md.
+  Personal HTCondor AP app.
+
+  **Note**: Ensure that you have an active **Personal HTCondor AP** interactive app session running prior
+  to launching an EP job.

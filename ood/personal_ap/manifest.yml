@@ -4,5 +4,7 @@ category: Interactive Apps
 subcategory: Servers
 role: batch_connect
 description: |
-  Launch a personal HTCondor Access Point (AP) as a Slurm job. A thin wrapper around
-  ap/install.sh and ap/start.sh; see the repository's README.md and notes.md for background.
+  Launch a personal HTCondor Access Point (AP) as a Slurm job. The AP holds your HTCondor job queue;
+  you will need to launch a **Personal HTCondor EP** alongside this AP to run your queued jobs.
+
+  **Note** For best results, only run a single instance of the AP app at a time.
