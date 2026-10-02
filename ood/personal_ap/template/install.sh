@@ -120,7 +120,7 @@ EOF
 
 # Alias `condor_status` to run against the AP's annex collector
 cat >> "$CONDOR_DIR/condor.sh" << EOF
-lias condor_status="condor_status -pool \$(condor_config_val NETWORK_HOSTNAME):9618?sock=ap_collector"
+alias condor_status="condor_status -pool \$(condor_config_val NETWORK_HOSTNAME):9618?sock=ap_collector"
 EOF
 
 # --- Configure HTCondor for Annex Mode --------------------------------------
