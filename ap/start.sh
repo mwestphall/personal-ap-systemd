@@ -20,6 +20,7 @@ Options:
 EOF
 }
 
+START_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONDOR_DIR=""
 
 while [ $# -gt 0 ]; do
@@ -73,6 +74,10 @@ echo "NETWORK_HOSTNAME = $AP_FULL_HOSTNAME" > "$CONDOR_DIR/local/config.d/13-ap-
 echo "==> Starting HTCondor AP"
 "$CONDOR_DIR/sbin/condor_master" -f &
 MASTER_PID=$!
+
+# Make sure we got port 9618; if another AP on this node beat us to it, this
+# kills the master and requeues the job onto a different node.
+"$START_DIR/check-port.sh" --started-by "$MASTER_PID"
 
 # --- Enable IDToken Authentication --------------------------------------
 # Wait up to 10 seconds for the AP to provision its pool password.

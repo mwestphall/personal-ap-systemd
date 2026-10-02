@@ -17,7 +17,17 @@ CURRENT_AP="$HOME/.cache/current-ap"
 # reuse_ap is only on the form (checked by default) when there is an existing AP.
 REUSE_AP="<%= context.respond_to?(:reuse_ap) ? context.reuse_ap : "0" %>"
 
-if [ "$REUSE_AP" = "1" ] && [ -d "$CURRENT_AP" ]; then
+# Only one AP can listen on port 9618 per node; move to another node if taken.
+"$AP_DIR/check-port.sh"
+
+# An earlier attempt of this job (before a requeue) may have already installed.
+ATTEMPT_DIR="$BASE_DIR/condor-${SLURM_JOB_ID:-}"
+
+if [ -n "${SLURM_JOB_ID:-}" ] && [ -d "$ATTEMPT_DIR" ]; then
+    echo "==> Resuming install from an earlier attempt of this job at $ATTEMPT_DIR"
+    mkdir -p "$(dirname "$CURRENT_AP")"
+    ln -sfn "$ATTEMPT_DIR" "$CURRENT_AP"
+elif [ "$REUSE_AP" = "1" ] && [ -d "$CURRENT_AP" ]; then
     echo "==> Resuming existing AP at $CURRENT_AP"
 else
     echo "==> Installing a fresh AP"

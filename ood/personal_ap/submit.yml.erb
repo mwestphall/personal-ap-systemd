@@ -3,6 +3,7 @@ batch_connect:
   template: basic
 script:
   native:
+    - "--open-mode=append"
     - "-p"
     - "<%= slurm_partition %>"
     - "-c"
