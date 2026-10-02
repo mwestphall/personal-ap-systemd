@@ -1,95 +1,44 @@
-# Personal HTCondor Cluster on Slurm
+# Personal HTCondor Cluster on CHTC Open OnDemand
 
-This repository contains instructions for launching a single-user HTCondor cluster on Slurm:
+This repository contains instructions for launching a single-user HTCondor cluster on CHTC's [Open OnDemand instance](https://ondemand.chtc.wisc.edu/):
 - Creating an HTCondor Submit Node (Access Point) for managing your HTCondor jobs via a long-lived Slurm job.
 - Creating Execution Points (EPs) for running your HTCondor jobs, also via Slurm jobs.
+- Submitting HTCondor jobs using Open OnDemand's interactive web terminal.
 
-# Prerequisites
+# Log into CHTC's Open OnDemand
 
-Before creating your HTCondor cluster, you must have the following:
+CHTC's Open OnDemand instance can be accessed at [ondemand.chtc.wisc.edu](https://ondemand.chtc.wisc.edu/). Log in using your UW NetID and Password.
 
-* Job submission permissions on a Slurm cluster:  
-  * Your HTCondor Access Point and its Execution Points run as Slurm jobs.
-
-* Networking enabled among your Slurm worker nodes.
-  * Execution Points must be able to initiate a TCP connection to the AP’s listening service (on port 9618 by default),
-    and the AP must be able to accept that inbound connection. 
-  
-* A shared filesystem among your Slurm login node and worker nodes:
-  * Interaction with your HTCondor cluster is accomplished via HTCondor command line tools run on your Slurm cluster's login node.
-    You must be able to access the HTCondor configuration files provisioned by your AP job from the login node.
-
-* `git` installed on your Slurm cluster's login node.
-
-# Download Slurm Scripts
-
-The Slurm scripts used to provision a cluster are available from [this repository](https://github.com/mwestphall/personal-ap-systemd).
-Clone this repo via Git before proceeding.
-
-```
-$ git clone https://github.com/mwestphall/personal-ap-systemd
-```
+If you are unable to access the cluster, [apply for access](https://chtc.wisc.edu/uw-research-computing/form.html) via the CHTC user app.
 
 # Schedule an Access Point on your Slurm Cluster
 
-The provided [ap.sub](./ap/ap.sub) and [install.sh](./ap/install.sh) scripts launch a Slurm job that:
+Your Personal AP manages the state of your HTCondor job queue.
+
+The **Personal HTCondor AP** interactive app launches a Slurm job that:
 
 1. Downloads (if needed) the HTCondor binaries.
 
 1. Configures HTCondor to run as an Access Point in single-user mode under your Unix account.
 
-1. Creates configuration that points HTCondor command line tools invoked from the login 
-   node at your running AP job.
+1. Creates configuration that points HTCondor command line tools at your running AP.
 
-To launch an AP Slurm job:
+To launch an instance of the Personal HTCondor AP interactive app:
 
-1. Submit `ap.sub` via `sbatch`, setting your desired Slurm partition and shared FS base dir as appropriate:
+1. Navigate to the "Interactive Apps" section of the Open OnDemand dashboard.
 
-    ```
-    $ cd $SHARED_FS/personal-ap-systemd/ap
-    $ sbatch -p <partition name> ap.sub $SHARED_FS
-    ```
+   ![Interactive App Dropdown](/docs/interactive-apps.png)
 
-1. Tail the created job's log to confirm that the AP starts successfully.
+1. Select "Personal HTCondor AP".
 
-    ```
-    $ tail -f personal-ap.debug
-    ...
-    ==> To interact with this AP, source the condor env file at $SHARED_FS/current-ap/condor.sh:
-        '. $SHARED_FS/current-ap/condor.sh'
-    ==> Running HTCondor AP in the foreground
-    ```
-  
+1. In the app's submission form, select a slurm partition and resource requests for your AP.
+    - All fields may be left as the default.
 
-1. Source the htcondor configurtion file as noted in the AP's start logs to point the login node's htcondor CLI tools
-   at the AP:
+1. "Launch" the app.
 
-    ```
-    $ . $SHARED_FS/current-ap/condor.sh
-    ```
+1. Watch the status of your AP interactive app. Wait for the AP app to reach the "Running" state. 
 
-# Confirm that your AP is Running
-
-1. Confirm that your AP's Schedd is running.
-    ```
-    $ condor_q
-
-    -- Schedd: hpc-worker100.slurm.cluster : <192.168.0.1:9618?... @ 08/28/26 14:11:15
-    OWNER BATCH_NAME      SUBMITTED   DONE   RUN    IDLE   HOLD  TOTAL JOB_IDS
-    
-    Total for query: 0 jobs; 0 completed, 0 removed, 0 idle, 0 running, 0 held, 0 suspended 
-    Total for all users: 0 jobs; 0 completed, 0 removed, 0 idle, 0 running, 0 held, 0 suspended
-    ```
-
-1. Confirm that your AP's collector is running.
-    ```
-    $ condor_status -pool $(condor_config_val NETWORK_HOSTNAME):9618?sock=ap_collector -any
-    MyType             TargetType         Name                                     
-    
-    Collector          None               My Pool - hpc-worker100.slurm.cluster@hpc-worker100.slurm.cluster
-    Scheduler          None               hpc-worker100.slurm.cluster
-    Submitter          None               you@hpc-worker100.slurm.cluster
-    ```
+   ![AP Status](/docs/ap-status.png)
 
 # Schedule an Execution Point on your Slurm Cluster
 
@@ -99,20 +48,22 @@ of a single Slurm job.
 
 ## Schedule an Execution Point
 
-The provided [annex-ep.sub](./ep/annex-ep.sub) contains a Slurm script that auto-configures an EP to run the jobs scheduled in your AP.
+The **Personal HTCondor EP** interactive app launches a Slurm script that auto-configures an EP to run the jobs scheduled in your AP.
 
-Submit `annex-ep.sub` via `sbatch`, setting your desired Slurm partition and the same base dir used for the AP.
+To launch an instance of the Personal HTCondor EP app:
 
-```
-$ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub $SHARED_FS
-```
+1. Navigate to the "Interactive Apps" section of the Open OnDemand dashboard.
 
-The provided `annex-ep.sub` script reads your AP's configuration from the shared FS, then launches an "annex-mode" EP configured to automatically
-run jobs scheduled in that AP.
- * In a non-annex HTCondor installation, a 3rd intermediary daemon is needed to broker connections between
-APs and EPs.
+1. Select "Personal HTCondor EP".
 
+1. In the app's submission form, select a slurm partition and resource requests for your EP.
+    - All fields may be left as the default.
+
+1. "Launch" the app.
+
+1. Watch the status of your AP interactive app. Wait for the EP app to reach the "Running" state, and for the AP app to detect the running EP. 
+
+   ![AP Status with EP](/docs/ap-status-with-ep.png)
 
 # Submit your first HTCondor Job to your AP
 
@@ -121,63 +72,69 @@ Execution Point (EP) runs any submitted workloads.
 
 Place a "Hello World" HTCondor job into your AP's job queue.
 
-## Create a "Hello World" Job
 
-Create a "Hello World" job on your login node, consisting of a Submit File (`hello.sub`) and an
-executable bash script (`hello.sh`):
+1. Access the Spark Login Node
 
-```
-$ cat << EOF >> hello.sub
-executable              = hello.sh
+    Open a Shell on the Spark login node via the "CHTC Spark Cluster Shell Access" menu item in Open OnDemand.
+    You will be prompted to log in again with your NetID and password.
 
-log                     = hello.log
-output                  = hello.out
-error                   = hello.err
+1. Set up your HTCondor environment
 
-should_transfer_files   = Yes
-when_to_transfer_output = ON_EXIT
-
-request_cpus            = 1
-request_memory          = 512M
-request_disk            = 1G
-
-queue
-
-EOF
-
-$ cat << EOF >> hello.sh
-#!/bin/bash
-echo "Hello, World!"
-echo "I am running on \$(hostname)"
-sleep 30
-EOF
-
-$ chmod +x hello.sh
-```
-
-## Submit your HTCondor Job to your AP
-
-Submit a test job to your AP. EPs launched via `annex-ep.sub` are labelled as `default-annex`. To
-schedule an HTCondor job that will run on these EPs, specify their annex name via `--annex-name`:
-
-```
-$ htcondor job submit hello.sub --annex-name default-annex
-```
-
-## Confirm that your Job Runs on the EP
-
-1. Confirm that your EP has successfully connected to your AP, and that your job is running on the EP:
+    Source the following file in your home directory:
 
     ```
-    $ htcondor annex status default-annex
-    Annex 'default-annex' is established.
-    Its oldest established request is about 0.00 hours old and will retire in 3.91 hours.
-    There are 1 nodes in the established annex.
-    There are 2 CPUs in the established annex, of which 1 are busy.
-    1 jobs must run on this annex, and 1 currently are.
+    $ . ~/.cache/current-ap/condor.sh
     ```
 
-1. Check the output of your job after it finishes:
+    You may also add the above line to your `~/.bashrc` to perform this configuration on every login.
+
+1. Create a "Hello World" Job
+
+    Create a "Hello World" job on your login node, consisting of a Submit File (`hello.sub`) and an
+    executable bash script (`hello.sh`):
+    
+    ```
+    $ cat << EOF >> hello.sub
+    executable              = hello.sh
+    
+    log                     = hello.log
+    output                  = hello.out
+    error                   = hello.err
+    
+    should_transfer_files   = Yes
+    when_to_transfer_output = ON_EXIT
+    
+    request_cpus            = 1
+    request_memory          = 512M
+    request_disk            = 1G
+    
+    queue
+    
+    EOF
+    
+    $ cat << EOF >> hello.sh
+    #!/bin/bash
+    echo "Hello, World!"
+    echo "I am running on \$(hostname)"
+    sleep 30
+    EOF
+    
+    $ chmod +x hello.sh
+    ```
+
+1. Submit your HTCondor Job to your AP
+
+    ```
+    $ condor_submit hello.sub
+    ```
+
+1. Confirm that your Job Runs on the EP
+
+    ```
+    $ condor_watch_q
+    ```
+
+1. Check the output of your job after it finishes
 
     ```
     $ cat hello.out
@@ -185,31 +142,18 @@ $ htcondor job submit hello.sub --annex-name default-annex
     I am running on hpc-worker123
     ```
 
-# Additional Options 
+# Additional Utilities
 
 ## Resume an Access Point
 
-The AP configured by `ap.sub` will exit after 4 hours by default. To resume your AP after it exits,
-submit `ap.sub` again with the same base dir. It detects the existing AP at symlink `$SHARED_FS/current-ap`
-and starts it without reinstalling:
+The AP configured by the **Personal HTCondor AP** app will exit after 4 hours by default. To resume your AP after it exits,
+re-run the Personal AP interactive app, ensuring that the "Resume AP" checkbox is checked.
 
-```
-$ cd $SHARED_FS/personal-ap-systemd/ap
-$ sbatch -p <partition name> ap.sub $SHARED_FS
-```
-
-EPs launched via `ep/annex-ep.sub` will automatically reconnect to a resumed AP.
-
-To launch a fresh AP, remove the `$SHARED_FS/current-ap` symlink before re-submitting the `ap.sub` job.
+To launch a fresh AP, discarding your previous instance, re-run the app with the "Resume AP" checkbox unchecked.
 
 
-## Add Worker Nodes
+## Add Execution Points
 
-To run larger workloads on your HTCondor cluster, you can schedule additional EPs onto your Slurm workers by re-running the `annex-ep.sub` script:
+To run larger workloads on your HTCondor cluster, you can schedule additional EPs onto your Slurm workers by re-running the **Personal HTCondor EP** interactive app.
 
-```
-$ cd $SHARED_FS/personal-ap-systemd/ep
-$ sbatch -p <partition-name> annex-ep.sub $SHARED_FS
-```
-
-Each invocation of this script will create a new directory under $SHARED_FS, labelled after the EP's Slurm batch ID.
+Each instance of the EP app will provide additional compute capacity to your cluster.
