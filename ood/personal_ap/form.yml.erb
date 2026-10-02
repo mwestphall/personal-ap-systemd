@@ -44,7 +44,6 @@ attributes:
     help: >-
       Resume the AP at ~/.cache/current-ap. Uncheck to install a fresh AP instead, which
       replaces it.
-    data-hide-base-dir-when-checked: true
 <% end %>
   base_dir:
     widget: text_field
@@ -52,4 +51,5 @@ attributes:
     value: ""
     help: >-
       Where to install a fresh AP (HTCondor is downloaded automatically), on storage shared
-      with the login node. Defaults to /scratch/$USER if left blank.
+      with the login node. Defaults to /scratch/$USER if left blank. Not used when resuming an
+      existing AP.
