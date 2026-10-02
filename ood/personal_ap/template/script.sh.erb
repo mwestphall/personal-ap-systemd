@@ -26,22 +26,10 @@ else
     echo "$INSTALL_OUTPUT"
 fi
 
+CONDOR_DIR="$(readlink -f "$CURRENT_AP")"
+
 # Periodically write the file that view.html.erb reads, into the AP's shared
 # dir. Runs in the background alongside the AP, and is cleaned up with the job.
-CONDOR_DIR="$(readlink -f "$CURRENT_AP")"
-VIEW_FILE="$CONDOR_DIR/ood-view.json"
-(
-    # shellcheck disable=SC1091
-    . "$CONDOR_DIR/condor.sh"
-    export _condor_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS
-    while sleep 30; do
-        # One EP per distinct STARTD_NAME suffix (slots are named slotN@<EP>).
-        if EPS="$(condor_status -pool localhost:9618?sock=ap_collector -startd -af Name 2>/dev/null)"; then
-            NUM_EPS="$(echo "$EPS" | sed -n 's/^[^@]*@//p' | sort -u | wc -l)"
-            printf '{"num_eps": %s, "updated": "%s"}\n' "$NUM_EPS" "$(date '+%F %T')" > "$VIEW_FILE.tmp" \
-                && mv "$VIEW_FILE.tmp" "$VIEW_FILE"
-        fi
-    done
-) &
+"$AP_DIR/update-view.sh" --condor-dir "$CONDOR_DIR" &
 
 exec "$AP_DIR/start.sh" --condor-dir "$CONDOR_DIR"
