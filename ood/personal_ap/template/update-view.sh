@@ -61,7 +61,7 @@ export _condor_SEC_CLIENT_AUTHENTICATION_METHODS=IDTOKENS
 
 while sleep "$INTERVAL"; do
     # Count distinct startd names (<slot>@<EP name>).
-    if ! EPS="$(condor_status -pool localhost:9618?sock=ap_collector -startd -af Name 2>/dev/null)"; then
+    if ! EPS="$($CONDOR_DIR/bin/condor_status -pool localhost:9618?sock=ap_collector -startd -af Name 2>/dev/null)"; then
         continue
     fi
     NUM_EPS="$(printf '%s\n' "$EPS" | sed '/^$/d' | sort -u | wc -l)"
